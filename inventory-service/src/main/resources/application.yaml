@@ -1,5 +1,28 @@
-spring:
-  application.name : inventory-service
-
 server:
   port: 8082
+
+spring:
+  application:
+    name: inventory-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5434/inventorydb
+    username: user
+    password: pass
+
+  flyway:
+    enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  kafka:
+    bootstrap-servers: localhost:9094
+    consumer:
+      group-id: inventory-service
+      auto-offset-reset: earliest
+    producer:
+      properties:
+        acks: all

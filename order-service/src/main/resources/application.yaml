@@ -1,5 +1,31 @@
-spring:
-  application.name : order-service
 
 server:
   port: 8081
+
+spring:
+  application:
+    name: order-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/orderdb
+    username: user1
+    password: pass1
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  flyway:
+    enabled: true
+
+  kafka:
+    bootstrap-servers: localhost:9094
+    consumer:
+      group-id: order-service
+      auto-offset-reset: earliest
+    producer:
+      properties:
+        acks: all
+
+
