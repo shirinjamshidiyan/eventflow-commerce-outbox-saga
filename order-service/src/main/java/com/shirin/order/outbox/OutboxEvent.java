@@ -74,20 +74,25 @@ public class OutboxEvent {
         this.status = OutboxStatus.PUBLISHED;
         this.publishedAt = Instant.now();
         this.lastError = null;
+        this.nextRetryAt = null;
     }
 
     public void markPublishFailed(String error, int maxRetries) {
-        if(this.status != OutboxStatus.DEAD) {
-             if (this.status == OutboxStatus.DEAD) {
-                return;
-            }
-            this.retryCount++;
-            this.lastError = error;
-            this.status = this.retryCount >= maxRetries
-                    ? OutboxStatus.DEAD
-                    : OutboxStatus.FAILED;
-            this.nextRetryAt = Instant.now().plusSeconds(10L * this.retryCount);
+         if (this.status == OutboxStatus.DEAD) {
+            return;
         }
+        this.retryCount++;
+        this.lastError = error;
+
+        if (this.retryCount >= maxRetries) {
+            this.status = OutboxStatus.DEAD;
+            this.nextRetryAt = null;
+            return;
+        }
+
+        this.status = OutboxStatus.FAILED;
+        this.nextRetryAt = Instant.now().plusSeconds(10L * this.retryCount);//linear backoff
+
     }
 
 }

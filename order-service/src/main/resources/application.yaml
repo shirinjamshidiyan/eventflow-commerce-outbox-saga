@@ -28,4 +28,10 @@ spring:
       properties:
         acks: all
 
-
+app:
+  kafka:
+    topics:
+      order-created: order.created.v1
+  outbox:
+    max-retries: 10
+    fixed-delay-ms: 3000

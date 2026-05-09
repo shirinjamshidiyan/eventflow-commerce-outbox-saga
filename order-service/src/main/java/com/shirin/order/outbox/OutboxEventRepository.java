@@ -12,16 +12,18 @@ import java.util.UUID;
 
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> {
 
-//    @Query("""
-//            select e from OutboxEvent e
-//            where e.status in :statuses
-//              and e.nextAttemptAt <= :now
-//            order by e.createdAt asc
-//            """)
-//    List<OutboxEvent> findPublishable(
-//            @Param("statuses") Collection<OutboxStatus> statuses,
-//            @Param("now") Instant now,
-//            Pageable pageable
-//    );
+    // Publisher must read events that: status = PENDING or (status = FAILED and next_retry_at <= now)
+    @Query("""
+            select e from OutboxEvent e
+            where e.status in :statuses
+            and (e.nextRetryAt is null or e.nextRetryAt <= :now)
+            order by e.createdAt asc
+            """)
+    List<OutboxEvent> findPublishableEvents(
+            @Param("statuses") Collection<OutboxStatus> statuses,
+            @Param("now") Instant now,
+            Pageable pageable
+    );
+
 }
 
