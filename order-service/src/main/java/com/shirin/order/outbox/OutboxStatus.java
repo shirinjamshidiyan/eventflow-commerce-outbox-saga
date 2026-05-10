@@ -6,6 +6,4 @@ public enum OutboxStatus {
     PUBLISHED, // kafka acked it
     FAILED, //failed before, but may be retried
     DEAD //do not retry automatically anymore
-
-
 }

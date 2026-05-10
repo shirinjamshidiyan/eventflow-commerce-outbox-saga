@@ -12,7 +12,6 @@ import java.time.Instant;
 @AllArgsConstructor
 public class OutboxRecoveryJob {
     private final OutboxEventRepository outboxRepository;
-
     @Transactional
     @Scheduled(fixedDelayString = "${app.outbox.recovery-delay-ms}")
     public void recoverStuckProcessingEvents() {

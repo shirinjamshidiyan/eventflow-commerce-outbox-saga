@@ -33,7 +33,7 @@ app:
     topics:
       order-created: order.created.v1
   outbox:
-    claim-limit: 1
+    claim-limit: 20
     max-retries: 10
-    fixed-delay-ms: 20000
+    fixed-delay-ms: 5000
     recovery-delay-ms: 60000

@@ -1,18 +1,14 @@
 package com.shirin.order.outbox;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Component
-@Slf4j
 public class OutboxPublisher {
 
    private final OutboxClaimService claimService;
@@ -43,7 +39,7 @@ public class OutboxPublisher {
 
     @Scheduled(fixedDelayString = "${app.outbox.fixed-delay-ms}")
     public void publishCandidateOutboxEvents() {
-        System.out.println("------------------" + Instant.now());
+
         List<OutboxEvent> events = claimService.claimOutboxEventsForPublish(claiLimit, owner);
 
         for (OutboxEvent event : events) {
@@ -54,13 +50,11 @@ public class OutboxPublisher {
 
     private void publish(OutboxEvent event) {
         try {
-            log.info("Publishing outbox event {} to Kafka", event.getId());
             kafkaTemplate
                     .send(topicFor(event), event.getAggregateId().toString() , event.getPayload())
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
-            log.info("Published outbox event {}", event.getId());
         } catch (Exception ex) {
 
             statusService.markPublishFailed(
@@ -69,7 +63,6 @@ public class OutboxPublisher {
                     maxRetries,
                     owner
             );
-            log.warn("Failed to publish outbox event {}", event.getId(), ex);
         }
     }
 

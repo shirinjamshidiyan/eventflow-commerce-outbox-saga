@@ -30,7 +30,6 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
             nativeQuery = true)
     List<OutboxEvent> findCandidatesForPublish(@Param("limit") int limit);
 
-
     @Modifying
     @Query(value = """
         UPDATE outbox_events
