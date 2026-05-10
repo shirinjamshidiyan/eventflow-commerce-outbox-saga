@@ -45,15 +45,15 @@ public class OrderApplicationService {
 
         OrderCreatedEvent event = new OrderCreatedEvent(eventId, orderId, eventItems);
 
-        OutboxEvent outboxEvent = OutboxEvent.pending(
+        OutboxEvent outboxEvent = OutboxEvent.createPendingEvent(
                 eventId,
                 "Order",
                 orderId,
                 "OrderCreated",
-                objectMapper.writeValueAsString(event));
+                objectMapper.writeValueAsString(event)
+        );
 
         outboxEventRepository.save(outboxEvent);
-
         return orderId;
     }
 

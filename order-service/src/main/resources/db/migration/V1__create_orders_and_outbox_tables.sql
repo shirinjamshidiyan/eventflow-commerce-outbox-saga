@@ -23,10 +23,17 @@ CREATE TABLE outbox_events (
            event_type VARCHAR(100) NOT NULL,
            payload TEXT NOT NULL,
            status VARCHAR(50) NOT NULL CHECK (
-               status IN ('PENDING', 'PUBLISHED', 'FAILED', 'DEAD')),
+               status IN ('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED', 'DEAD')),
            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
            published_at TIMESTAMPTZ,
            last_error TEXT,
            retry_count INT NOT NULL DEFAULT 0,
-           next_retry_at TIMESTAMPTZ
+           next_retry_at TIMESTAMPTZ,
+           processing_started_at TIMESTAMPTZ,
+           processing_by VARCHAR(100)
 );
+CREATE INDEX idx_outbox_publishable
+    ON outbox_events(status, next_retry_at, created_at);
+
+CREATE INDEX idx_outbox_processing
+    ON outbox_events(status, processing_started_at);

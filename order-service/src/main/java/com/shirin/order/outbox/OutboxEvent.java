@@ -44,6 +44,12 @@ public class OutboxEvent {
     @Column(name = "next_retry_at")
     private Instant nextRetryAt;
 
+    @Column(name = "processing_started_at")
+    private Instant processingStartedAt;
+
+    @Column(name = "processing_by")
+    private String processingBy;
+
     protected OutboxEvent() {
     }
     private OutboxEvent(
@@ -63,8 +69,16 @@ public class OutboxEvent {
     }
 
 
-    public static OutboxEvent pending(UUID id,String aggregateType, UUID aggregateId , String eventType, String payload) {
+    public static OutboxEvent createPendingEvent(UUID id,String aggregateType, UUID aggregateId , String eventType, String payload) {
         return new OutboxEvent(id, aggregateType, aggregateId, eventType, payload);
+    }
+
+    public void markProcessing(String owner) {
+        if (this.status == OutboxStatus.PENDING || this.status == OutboxStatus.FAILED) {
+            this.status = OutboxStatus.PROCESSING;
+            this.processingStartedAt = Instant.now();
+            this.processingBy = owner;
+        }
     }
 
     public void markPublished() {
@@ -75,14 +89,18 @@ public class OutboxEvent {
         this.publishedAt = Instant.now();
         this.lastError = null;
         this.nextRetryAt = null;
+        this.processingStartedAt = null;
+//        this.processingBy = null;
     }
 
-    public void markPublishFailed(String error, int maxRetries) {
+    public void markFailedOrDead(String error, int maxRetries) {
          if (this.status == OutboxStatus.DEAD) {
             return;
         }
         this.retryCount++;
         this.lastError = error;
+        this.processingStartedAt = null;
+        this.processingBy = null;
 
         if (this.retryCount >= maxRetries) {
             this.status = OutboxStatus.DEAD;
@@ -93,6 +111,9 @@ public class OutboxEvent {
         this.status = OutboxStatus.FAILED;
         this.nextRetryAt = Instant.now().plusSeconds(10L * this.retryCount);//linear backoff
 
+    }
+    public boolean isProcessingBy(String owner) {
+        return this.status == OutboxStatus.PROCESSING && owner.equals(this.processingBy);
     }
 
 }
