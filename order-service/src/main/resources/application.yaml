@@ -1,6 +1,6 @@
 
 server:
-  port: 8081
+  port: ${SERVER_PORT:8081}
 
 spring:
   application:
@@ -28,4 +28,12 @@ spring:
       properties:
         acks: all
 
-
+app:
+  kafka:
+    topics:
+      order-created: order.created.v1
+  outbox:
+    claim-limit: 20
+    max-retries: 10
+    fixed-delay-ms: 5000
+    recovery-delay-ms: 60000
