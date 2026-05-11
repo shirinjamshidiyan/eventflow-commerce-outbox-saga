@@ -23,8 +23,7 @@ public class Order {
     @Column(name = "created_at", insertable = false, nullable = false)
     private Instant createdAt;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true
-    )
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
     protected Order() {}
@@ -36,6 +35,9 @@ public class Order {
 
     public void addItem(UUID skuId, int quantity) {
         OrderItem item = new OrderItem(UUID.randomUUID(),this, skuId, quantity);
+        if(this.items == null)
+            this.items = new ArrayList<>();
+
         this.items.add(item);
     }
 
