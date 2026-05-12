@@ -1,7 +1,8 @@
-package com.shirin.order.outbox;
+package com.shirin.inventory.outbox;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+
 import java.time.Instant;
 import java.util.UUID;
 @Entity
@@ -93,7 +94,7 @@ public class OutboxEvent {
         this.nextRetryAt = null;
         this.processingStartedAt = null;
         this.processingBy = null;
-        this.publishedBy= owner;
+        this.publishedBy = owner;
     }
 
     public void markFailedOrDead(String error, int maxRetries) {

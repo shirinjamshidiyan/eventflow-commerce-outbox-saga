@@ -1,9 +1,10 @@
-package com.shirin.order.outbox;
+package com.shirin.inventory.outbox;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -14,7 +15,8 @@ public class OutboxPublisher {
    private final OutboxClaimService claimService;
     private final OutboxStatusService statusService;
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final String orderCreatedTopic;
+    private final String inventoryReservedTopic;
+    private final String inventoryReservationFailedTopic;
     private final int maxRetries;
     private final String owner;
     private final int claimLimit;
@@ -23,16 +25,18 @@ public class OutboxPublisher {
             OutboxClaimService claimService,
             OutboxStatusService statusService,
             KafkaTemplate<String, String> kafkaTemplate,
-            @Value("${app.kafka.topics.order-created}") String orderCreatedTopic,
+            @Value("${app.kafka.topics.inventory-reserved}") String inventoryReservedTopic,
+            @Value("${app.kafka.topics.inventory-reservation-failed}") String inventoryReservationFailedTopic,
             @Value("${app.outbox.max-retries}") int maxRetries,
             @Value("${app.outbox.claim-limit}") int claiLimit
     ) {
         this.claimService = claimService;
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
-        this.orderCreatedTopic = orderCreatedTopic;
+        this.inventoryReservedTopic = inventoryReservedTopic;
+        this.inventoryReservationFailedTopic = inventoryReservationFailedTopic;
         this.maxRetries = maxRetries;
-        this.owner = "order-service-" + UUID.randomUUID();
+        this.owner = "inventory-service-" + UUID.randomUUID();
         this.claimLimit = claiLimit;
     }
 
@@ -70,7 +74,8 @@ public class OutboxPublisher {
         return
                 switch (event.getEventType())
                 {
-                    case "OrderCreated" -> orderCreatedTopic;
+                    case "InventoryReserved" -> inventoryReservedTopic;
+                    case "InventoryReservationFailed" -> inventoryReservationFailedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
     }
