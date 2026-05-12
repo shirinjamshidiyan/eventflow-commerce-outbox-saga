@@ -19,7 +19,7 @@ public class OutboxPublisher {
     private final String inventoryReservationFailedTopic;
     private final int maxRetries;
     private final String owner;
-    private final int claiLimit;
+    private final int claimLimit;
 
     public OutboxPublisher(
             OutboxClaimService claimService,
@@ -36,15 +36,15 @@ public class OutboxPublisher {
         this.inventoryReservedTopic = inventoryReservedTopic;
         this.inventoryReservationFailedTopic = inventoryReservationFailedTopic;
         this.maxRetries = maxRetries;
-        this.owner = "order-service-" + UUID.randomUUID();
-        this.claiLimit = claiLimit;
+        this.owner = "inventory-service-" + UUID.randomUUID();
+        this.claimLimit = claiLimit;
     }
 
 
     @Scheduled(fixedDelayString = "${app.outbox.fixed-delay-ms}")
     public void publishCandidateOutboxEvents() {
 
-        List<OutboxEvent> events = claimService.claimOutboxEventsForPublish(claiLimit, owner);
+        List<OutboxEvent> events = claimService.claimOutboxEventsForPublish(claimLimit, owner);
 
         for (OutboxEvent event : events) {
             publish(event);

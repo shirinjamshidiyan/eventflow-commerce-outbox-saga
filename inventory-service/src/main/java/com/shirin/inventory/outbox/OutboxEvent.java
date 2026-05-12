@@ -35,6 +35,9 @@ public class OutboxEvent {
     @Column(name = "published_at")
     private Instant publishedAt;
 
+    @Column(name = "published_by")
+    private String publishedBy;  //who publishes the event
+
     @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
@@ -48,7 +51,7 @@ public class OutboxEvent {
     private Instant processingStartedAt;
 
     @Column(name = "processing_by")
-    private String processingBy;
+    private String processingBy; //who currently claims the event
 
     protected OutboxEvent() {
     }
@@ -81,7 +84,7 @@ public class OutboxEvent {
         }
     }
 
-    public void markPublished() {
+    public void markPublished(String owner) {
         if (this.status == OutboxStatus.DEAD) {
             return;
         }
@@ -90,7 +93,8 @@ public class OutboxEvent {
         this.lastError = null;
         this.nextRetryAt = null;
         this.processingStartedAt = null;
-//        this.processingBy = null;
+        this.processingBy = null;
+        this.publishedBy = owner;
     }
 
     public void markFailedOrDead(String error, int maxRetries) {

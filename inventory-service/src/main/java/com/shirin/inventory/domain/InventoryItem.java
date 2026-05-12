@@ -4,13 +4,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "inventory_items")
+@Getter
 public class InventoryItem {
 
     @Id
@@ -20,18 +20,17 @@ public class InventoryItem {
     @Column(name = "available_quantity", nullable = false)
     private  int availableQuantity;
 
-
     protected InventoryItem(){}
     public boolean hasEnoughQuantity(int requestedQuantity)
     {
         return this.availableQuantity >= requestedQuantity;
     }
 
-    public void decrease(int requestedQuantity)  //todo1: multi-instance condition => Lock
+    public void decrease(int requestedQuantity)
     {
        if(!hasEnoughQuantity(requestedQuantity))
        {
-           throw new IllegalStateException("Not enough inventory"); //todo: error handling
+           throw new IllegalStateException("Not enough inventory");
        }
        this.availableQuantity -= requestedQuantity;
 

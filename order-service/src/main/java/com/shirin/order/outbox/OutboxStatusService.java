@@ -18,7 +18,7 @@ public class OutboxStatusService {
         if (!event.isProcessingBy(owner)) {
             return;
         }
-        event.markPublished();
+        event.markPublished(owner);
     }
 
     @Transactional

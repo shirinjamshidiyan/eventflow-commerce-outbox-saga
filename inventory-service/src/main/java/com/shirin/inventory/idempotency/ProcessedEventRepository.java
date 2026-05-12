@@ -1,10 +1,20 @@
 package com.shirin.inventory.idempotency;
 
-import com.shirin.inventory.domain.InventoryItem;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.UUID;
 
-//todo3: redis
 public interface ProcessedEventRepository extends JpaRepository<ProcessedEvent, UUID> {
+
+    @Modifying
+    @Query(value = """
+    INSERT INTO processed_events(event_id)
+    VALUES (:eventId)
+    ON CONFLICT DO NOTHING
+    """, nativeQuery = true)
+    int insertIfAbsent(@Param("eventId") UUID eventId);  //database is the idempotency gate itself
+
 }

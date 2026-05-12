@@ -3,7 +3,6 @@ package com.shirin.inventory.outbox;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.UUID;
 
 @Service
@@ -18,7 +17,7 @@ public class OutboxStatusService {
         if (!event.isProcessingBy(owner)) {
             return;
         }
-        event.markPublished();
+        event.markPublished(owner);
     }
 
     @Transactional
