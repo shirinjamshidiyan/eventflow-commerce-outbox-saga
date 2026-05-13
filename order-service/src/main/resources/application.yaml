@@ -32,6 +32,8 @@ app:
   kafka:
     topics:
       order-created: order.created.v1
+      inventory-reserved: inventory.reserved.v1
+      inventory-reservation-failed: inventory.reservation-failed.v1
   outbox:
     claim-limit: 20
     max-retries: 10

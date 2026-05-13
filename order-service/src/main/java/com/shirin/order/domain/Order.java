@@ -41,4 +41,18 @@ public class Order {
         this.items.add(item);
     }
 
+    public void changeStatusToInventoryReserved() {
+        if (this.status == OrderStatus.CANCELLED) {
+            return;
+        }
+        this.status = OrderStatus.INVENTORY_RESERVED;
+    }
+
+    public void changeStatusToCancelled(String reason) {
+        if (this.status == OrderStatus.INVENTORY_RESERVED) {
+            return;
+        }
+        this.status = OrderStatus.CANCELLED;
+    }
+
 }
