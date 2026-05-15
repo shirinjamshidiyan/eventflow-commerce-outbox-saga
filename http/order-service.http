@@ -20,8 +20,11 @@ POST http://localhost:8081/orders
 Content-Type: application/json
 
 {
+  "eventId": null,
+  "orderId": "11111111-1111-1111-1111-111111111111",
   "items": []
 }
+
 
 ### Null quantity for an item -> Should return Status:400
 POST http://localhost:8081/orders

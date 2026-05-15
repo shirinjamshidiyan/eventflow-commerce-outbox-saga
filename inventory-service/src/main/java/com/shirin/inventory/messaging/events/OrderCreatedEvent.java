@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
 
-//todo2: هماهنگی ایونت ها در سرویس های مختلف
 
 public record OrderCreatedEvent(
        @NotNull UUID eventId,

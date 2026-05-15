@@ -1,4 +1,4 @@
-package com.shirin.inventory.idempotency;
+package com.shirin.order.idempotency;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -14,7 +14,8 @@ public interface ProcessedEventRepository extends JpaRepository<ProcessedEvent, 
             INSERT INTO processed_events(event_id)
             VALUES (:eventId)
             ON CONFLICT DO NOTHING
-     """, nativeQuery = true)
-    int insertIfAbsent(@Param("eventId") UUID eventId);  //database is the idempotency gate itself
+    """, nativeQuery = true)
+    int insertIfAbsent(@Param("eventId") UUID eventId );
 
 }
+

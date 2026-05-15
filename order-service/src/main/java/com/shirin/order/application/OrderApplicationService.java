@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shirin.order.domain.Order;
 import com.shirin.order.domain.OrderRepository;
+import com.shirin.order.idempotency.ProcessedEventRepository;
+import com.shirin.order.messaging.events.InventoryReservationFailedEvent;
+import com.shirin.order.messaging.events.InventoryReservedEvent;
 import com.shirin.order.messaging.events.OrderCreatedEvent;
 import com.shirin.order.messaging.events.OrderCreatedEventItem;
 import com.shirin.order.outbox.OutboxEvent;
@@ -21,9 +24,11 @@ public class OrderApplicationService {
     private final OrderRepository orderRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final ProcessedEventRepository idempotencyRepository;
 
     @Transactional
-    public UUID createOrder(CreateOrderCommand command) throws JsonProcessingException {
+    public UUID createOrder(CreateOrderCommand command) throws JsonProcessingException
+    {
 
         UUID orderId = UUID.randomUUID();
         Order order = new Order(orderId);
@@ -55,6 +60,30 @@ public class OrderApplicationService {
 
         outboxEventRepository.save(outboxEvent);
         return orderId;
+    }
+
+    @Transactional
+    public void handleInventoryReservedEvent(InventoryReservedEvent event)
+    {
+
+        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        if(inserted ==0 ) return;
+
+        Order order = orderRepository.findById(event.orderId()).orElseThrow();
+        order.changeStatusToInventoryReserved();
+
+    }
+
+    @Transactional
+    public void handleInventoryReservationFailedEvent(InventoryReservationFailedEvent event)
+    {
+        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        if(inserted ==0 ) return;
+
+        Order order = orderRepository.findById(event.orderId()).orElseThrow();
+        order.changeStatusToCancelled(event.reason());
+
+
     }
 
 }
