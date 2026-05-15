@@ -25,16 +25,26 @@ public class OrderCreatedConsumer {
             topics = "${app.kafka.topics.order-created}",
             groupId = "${spring.kafka.consumer.group-id}"
     )
-    public void consumeOrderCreatedEvent(String payload) throws JsonProcessingException {
-        OrderCreatedEvent event =
-                objectMapper.readValue(payload, OrderCreatedEvent.class);
-
-        Set<ConstraintViolation<OrderCreatedEvent>> violations  = this.validator.validate(event);
-        if (!violations.isEmpty()) {
-            throw new ConstraintViolationException(violations); //todo
-        }
-
-
+    public void consumeOrderCreatedEvent(String payload) {
+        OrderCreatedEvent event = toEvent(payload);
+        validate(event);
         inventoryService.processOrderCreatedEvent(event);
+    }
+
+
+    private OrderCreatedEvent toEvent(String payload) {
+        try {
+            return objectMapper.readValue(payload, OrderCreatedEvent.class);
+        } catch (JsonProcessingException ex) {
+            throw new InvalidEventPayloadException("Invalid OrderCreated JSON payload", ex);
+        }
+    }
+    private void validate(OrderCreatedEvent event) {
+        Set<ConstraintViolation<OrderCreatedEvent>> violations =
+                validator.validate(event);
+
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
     }
 }

@@ -1,8 +1,11 @@
 package com.shirin.order.messaging.events;
 
+import jakarta.validation.constraints.NotNull;
+
 import java.util.UUID;
 
 public record InventoryReservedEvent (
-    UUID eventId,
-    UUID orderId
-){}
+        @NotNull UUID eventId,
+        @NotNull UUID orderId
+){
+}

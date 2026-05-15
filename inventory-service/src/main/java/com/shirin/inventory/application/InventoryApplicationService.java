@@ -29,22 +29,16 @@ public class InventoryApplicationService {
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
 
-    //inside one transaction:
-    // 1- processed_events insert
-    // 2- inventory row lock
-    // 3- stock decrease
-    // 4- result outbox insert
     @Transactional
    public void processOrderCreatedEvent(OrderCreatedEvent event)  {
 
+        // processed_events insert
         int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
         if(inserted==0)
             return;
 
         //for reducing the possibility of deadlock between multiple orders
-        //order A: locks SKU 1 , then wants SKU 2
-        //order B: locks SKU 2 , then wants SKU 1
-        // Solution: arrange SKUs in order, then process and lock sorted items
+        // Arrange SKUs in order, then process and lock sorted items
         List<OrderCreatedEventItem> sortedItems = event.items()
                 .stream()
                 .sorted(Comparator.comparing(item -> item.skuId().toString()))
@@ -54,6 +48,7 @@ public class InventoryApplicationService {
         boolean reserved = true;
         String failureReason = null;
 
+        // inventory row lock
         for (var item: sortedItems)
         {
           InventoryItem inventoryItem = inventoryRepository
@@ -76,6 +71,7 @@ public class InventoryApplicationService {
        }
       if(reserved)
       {
+          // stock decrease
           for (int i = 0; i < event.items().size(); i++) {
               lockedItems.get(i).decrease(event.items().get(i).quantity());
           }
@@ -84,6 +80,7 @@ public class InventoryApplicationService {
                 UUID.randomUUID(),
                 event.orderId()
         );
+        //  result outbox insert
         outboxRepository.save(OutboxEvent.createPendingEvent(
                 successEvent.eventId(),
                 "Inventory",
@@ -95,6 +92,7 @@ public class InventoryApplicationService {
         InventoryReservationFailedEvent failureEvent  = new InventoryReservationFailedEvent(
                 UUID.randomUUID(), event.orderId(), failureReason);
 
+          //  result outbox insert
         outboxRepository.save(OutboxEvent.createPendingEvent(
                 failureEvent.eventId(),
                 "Inventory",
@@ -106,12 +104,13 @@ public class InventoryApplicationService {
 
     }
 
-    //change Checked Exception(JsonProcessingException) to Unchecked (IllegalStateException), so that @Transaction and rollback will works on it
+    //change Checked Exception(JsonProcessingException) to Unchecked (IllegalStateException),
+    // so that @Transaction and rollback will work on it
     private String toJson(Object event) {
         try {
             return objectMapper.writeValueAsString(event);
         } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to serialize event", ex);
+            throw new EventSerializationException("Failed to serialize outgoing inventory event", ex);
         }
     }
 }

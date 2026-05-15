@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shirin.order.domain.Order;
 import com.shirin.order.domain.OrderRepository;
-import com.shirin.order.domain.OrderStatus;
 import com.shirin.order.idempotency.ProcessedEventRepository;
 import com.shirin.order.messaging.events.InventoryReservationFailedEvent;
 import com.shirin.order.messaging.events.InventoryReservedEvent;

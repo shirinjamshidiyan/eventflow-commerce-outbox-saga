@@ -20,7 +20,4 @@ public class ProcessedEvent {
     private Instant processedAt;
 
     protected ProcessedEvent(){}
-   // public ProcessedEvent(UUID eventId) {
-//        this.eventId = eventId;
-//    }
 }

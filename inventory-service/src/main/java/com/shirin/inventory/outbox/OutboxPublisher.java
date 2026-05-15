@@ -7,7 +7,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Component
 public class OutboxPublisher {
@@ -59,15 +61,39 @@ public class OutboxPublisher {
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
-        } catch (Exception ex) {
 
+        } catch (InterruptedException ex) {
+            try {
+                statusService.markPublishFailed(
+                        event.getId(),
+                        errorMessage(ex),
+                        maxRetries,
+                        owner
+                );
+            } finally {
+                // Restore the interrupt status because catching InterruptedException clears it.
+                Thread.currentThread().interrupt();
+            }
+
+        } catch (ExecutionException | TimeoutException ex) {
             statusService.markPublishFailed(
                     event.getId(),
                     errorMessage(ex),
                     maxRetries,
                     owner
             );
+            //broker unavailable -> ExecutionException, cause is Kafka exception
+            //serialization failed -> ExecutionException, cause is serialization related exception
+            //invalid/missing topic -> ExecutionException, cause is Kafka exception
+            //send did not complete within 5 seconds -> TimeoutException
         }
+    }
+    private String errorMessage(Exception ex) {
+        Throwable target = ex.getCause() != null ? ex.getCause() : ex;
+        String message = target.getMessage();
+
+        return target.getClass().getSimpleName()
+                + (message == null ? "" : ": " + message);
     }
 
     private String topicFor(OutboxEvent event) {
@@ -78,20 +104,6 @@ public class OutboxPublisher {
                     case "InventoryReservationFailed" -> inventoryReservationFailedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
-    }
-
-    private String errorMessage(Exception ex) {
-        Throwable cause = ex.getCause();
-
-        if (cause != null) {
-            String message = cause.getMessage();
-            return cause.getClass().getSimpleName()
-                    + (message == null ? "" : ": " + message);
-        }
-
-        String message = ex.getMessage();
-        return ex.getClass().getSimpleName()
-                + (message == null ? "" : ": " + message);
     }
 
 }

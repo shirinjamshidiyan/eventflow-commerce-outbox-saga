@@ -6,7 +6,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Component
 public class OutboxPublisher {
@@ -55,8 +57,20 @@ public class OutboxPublisher {
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
-        } catch (Exception ex) {
 
+        } catch (InterruptedException ex) {
+            try {
+                statusService.markPublishFailed(
+                        event.getId(),
+                        errorMessage(ex),
+                        maxRetries,
+                        owner
+                );
+            }
+            finally {
+                Thread.currentThread().interrupt(); //restore interrupt flag
+            }
+        } catch (TimeoutException | ExecutionException ex) {
             statusService.markPublishFailed(
                     event.getId(),
                     errorMessage(ex),
@@ -66,6 +80,15 @@ public class OutboxPublisher {
         }
     }
 
+    private String errorMessage(Exception ex) {
+
+        Throwable target = ex.getCause() != null ? ex.getCause() : ex;
+        String message = target.getMessage();
+
+        return target.getClass().getSimpleName()
+                + (message == null ? "" : ": " + message);
+
+    }
     private String topicFor(OutboxEvent event) {
         return
                 switch (event.getEventType())
@@ -75,18 +98,5 @@ public class OutboxPublisher {
                 };
     }
 
-    private String errorMessage(Exception ex) {
-        Throwable cause = ex.getCause();
-
-        if (cause != null) {
-            String message = cause.getMessage();
-            return cause.getClass().getSimpleName()
-                    + (message == null ? "" : ": " + message);
-        }
-
-        String message = ex.getMessage();
-        return ex.getClass().getSimpleName()
-                + (message == null ? "" : ": " + message);
-    }
 
 }

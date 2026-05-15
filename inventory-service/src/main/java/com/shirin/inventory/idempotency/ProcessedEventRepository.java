@@ -11,10 +11,10 @@ public interface ProcessedEventRepository extends JpaRepository<ProcessedEvent, 
 
     @Modifying
     @Query(value = """
-    INSERT INTO processed_events(event_id)
-    VALUES (:eventId)
-    ON CONFLICT DO NOTHING
-    """, nativeQuery = true)
+            INSERT INTO processed_events(event_id)
+            VALUES (:eventId)
+            ON CONFLICT DO NOTHING
+     """, nativeQuery = true)
     int insertIfAbsent(@Param("eventId") UUID eventId);  //database is the idempotency gate itself
 
 }
