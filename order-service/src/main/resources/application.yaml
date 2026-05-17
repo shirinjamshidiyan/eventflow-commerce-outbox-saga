@@ -7,9 +7,9 @@ spring:
     name: order-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/orderdb
-    username: user1
-    password: pass1
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/orderdb}
+    username: ${DB_USERNAME:user1}
+    password: ${DB_PASSWORD:pass1}
 
   jpa:
     hibernate:
@@ -20,7 +20,7 @@ spring:
     enabled: true
 
   kafka:
-    bootstrap-servers: localhost:9094
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
     consumer:
       group-id: order-service
       auto-offset-reset: earliest

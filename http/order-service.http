@@ -6,7 +6,7 @@ Content-Type: application/json
   "items": [
     {
       "skuId": "11111111-1111-1111-1111-111111111111",
-      "quantity": 5
+      "quantity": 3
     },
     {
       "skuId": "11111111-1111-1111-2222-111111111111",
@@ -21,7 +21,7 @@ Content-Type: application/json
 
 {
   "eventId": null,
-  "orderId": "11111111-1111-1111-1111-111111111111",
+  "orderId": "3333111-1111-1111-1111-111111111111",
   "items": []
 }
 

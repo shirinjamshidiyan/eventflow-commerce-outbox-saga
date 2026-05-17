@@ -1,14 +1,14 @@
 server:
-  port: 8082
+  port: ${SERVER_PORT:8082}
 
 spring:
   application:
     name: inventory-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5434/inventorydb
-    username: user2
-    password: pass2
+    url: ${DB_URL:jdbc:postgresql://localhost:5434/inventorydb}
+    username:  ${DB_USERNAME:user2}
+    password:  ${DB_PASSWORD:pass2}
 
   flyway:
     enabled: true
@@ -19,7 +19,7 @@ spring:
     show-sql: true
 
   kafka:
-    bootstrap-servers: localhost:9094
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
     consumer:
       group-id: inventory-service
       auto-offset-reset: earliest

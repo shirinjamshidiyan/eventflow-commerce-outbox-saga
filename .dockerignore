@@ -1,0 +1,11 @@
+.git
+.idea
+*.iml
+
+**/target
+**/.mvn
+**/logs
+
+README.md
+docs
+http
