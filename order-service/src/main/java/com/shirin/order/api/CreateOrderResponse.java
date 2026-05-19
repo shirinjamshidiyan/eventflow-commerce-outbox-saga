@@ -2,5 +2,5 @@ package com.shirin.order.api;
 
 import java.util.UUID;
 
-public record CreateOrderResponse(UUID orderId) {
+public record CreateOrderResponse(UUID orderId, boolean duplicate) {
 }

@@ -1,7 +1,10 @@
 package com.shirin.order.domain;
 
 public enum OrderStatus {
-    PENDING_INVENTORY,
+    INVENTORY_PENDING,
     INVENTORY_RESERVED,
+    PAYMENT_PENDING,
+    CONFIRMED,
+    CANCELLATION_PENDING,
     CANCELLED
 }

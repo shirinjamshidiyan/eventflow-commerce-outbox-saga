@@ -27,7 +27,7 @@ public class OutboxPublisher {
             KafkaTemplate<String, String> kafkaTemplate,
             @Value("${app.kafka.topics.order-created}") String orderCreatedTopic,
             @Value("${app.outbox.max-retries}") int maxRetries,
-            @Value("${app.outbox.claim-limit}") int claiLimit
+            @Value("${app.outbox.claim-limit}") int claimLimit
     ) {
         this.claimService = claimService;
         this.statusService = statusService;
@@ -35,7 +35,7 @@ public class OutboxPublisher {
         this.orderCreatedTopic = orderCreatedTopic;
         this.maxRetries = maxRetries;
         this.owner = "order-service-" + UUID.randomUUID();
-        this.claimLimit = claiLimit;
+        this.claimLimit = claimLimit;
     }
 
 
@@ -70,7 +70,7 @@ public class OutboxPublisher {
             finally {
                 Thread.currentThread().interrupt(); //restore interrupt flag
             }
-        } catch (TimeoutException | ExecutionException ex) {
+        } catch (TimeoutException | ExecutionException | IllegalArgumentException ex) {
             statusService.markPublishFailed(
                     event.getId(),
                     errorMessage(ex),
@@ -94,6 +94,8 @@ public class OutboxPublisher {
                 switch (event.getEventType())
                 {
                     case "OrderCreated" -> orderCreatedTopic;
+                    //case "PaymentRequested" -> paymentRequestedTopic;
+                    //        case "InventoryReleaseRequested" -> inventoryReleaseRequestedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
     }
