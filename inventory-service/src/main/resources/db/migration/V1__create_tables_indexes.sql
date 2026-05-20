@@ -3,6 +3,24 @@ CREATE TABLE inventory_items(
     available_quantity INT NOT NULL CHECK ( available_quantity >= 0 )
 );
 
+CREATE TABLE inventory_reservations (
+    id UUID PRIMARY KEY,
+    order_id UUID NOT NULL,
+    sku_id UUID NOT NULL,
+    quantity INT NOT NULL CHECK (quantity > 0),
+    status VARCHAR(50) NOT NULL CHECK (
+        status IN ('RESERVED', 'RELEASED')
+        ),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    released_at TIMESTAMPTZ,
+
+    CONSTRAINT uq_inventory_reservations_order_sku
+        UNIQUE (order_id, sku_id)
+);
+
+CREATE INDEX idx_inventory_reservations_order_status
+    ON inventory_reservations(order_id, status);
+
 CREATE TABLE processed_events(
     event_id UUID PRIMARY KEY,
     processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

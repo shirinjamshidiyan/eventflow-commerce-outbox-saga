@@ -11,4 +11,4 @@ import java.util.UUID;
 public record OrderCreatedEvent(
        @NotNull UUID eventId,
        @NotNull UUID orderId,
-        @NotEmpty List<@Valid OrderCreatedEventItem> items) { }
+       @NotEmpty List<@Valid OrderCreatedEventItem> items) { }

@@ -33,6 +33,8 @@ app:
       order-created: order.created.v1
       inventory-reserved: inventory.reserved.v1
       inventory-reservation-failed: inventory.reservation-failed.v1
+      inventory-release-requested: inventory.release.requested.v1
+      inventory-released: inventory.released.v1
   outbox:
     claim-limit: 20
     max-retries: 10

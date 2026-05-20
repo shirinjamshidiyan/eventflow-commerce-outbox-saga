@@ -17,6 +17,8 @@ public class OutboxPublisher {
     private final OutboxStatusService statusService;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final String orderCreatedTopic;
+    private final String paymentRequestedTopic;
+    private final String x2;
     private final int maxRetries;
     private final String owner;
     private final int claimLimit;
@@ -26,6 +28,8 @@ public class OutboxPublisher {
             OutboxStatusService statusService,
             KafkaTemplate<String, String> kafkaTemplate,
             @Value("${app.kafka.topics.order-created}") String orderCreatedTopic,
+            @Value("${app.kafka.topics.payment-Requested}") String paymentRequestedTopic,
+            @Value("${app.kafka.topics.order-created}") String x2,
             @Value("${app.outbox.max-retries}") int maxRetries,
             @Value("${app.outbox.claim-limit}") int claimLimit
     ) {
@@ -33,6 +37,8 @@ public class OutboxPublisher {
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
         this.orderCreatedTopic = orderCreatedTopic;
+        this.paymentRequestedTopic = paymentRequestedTopic;
+        this.x2 = x2;
         this.maxRetries = maxRetries;
         this.owner = "order-service-" + UUID.randomUUID();
         this.claimLimit = claimLimit;
@@ -66,11 +72,10 @@ public class OutboxPublisher {
                         maxRetries,
                         owner
                 );
-            }
-            finally {
+            } finally {
                 Thread.currentThread().interrupt(); //restore interrupt flag
             }
-        } catch (TimeoutException | ExecutionException | IllegalArgumentException ex) {
+        } catch (TimeoutException | ExecutionException | RuntimeException ex) {
             statusService.markPublishFailed(
                     event.getId(),
                     errorMessage(ex),
@@ -94,8 +99,8 @@ public class OutboxPublisher {
                 switch (event.getEventType())
                 {
                     case "OrderCreated" -> orderCreatedTopic;
-                    //case "PaymentRequested" -> paymentRequestedTopic;
-                    //        case "InventoryReleaseRequested" -> inventoryReleaseRequestedTopic;
+                    case "PaymentRequested" -> paymentRequestedTopic;
+//                    case "InventoryReleaseRequested" -> inventoryReleaseRequestedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
     }

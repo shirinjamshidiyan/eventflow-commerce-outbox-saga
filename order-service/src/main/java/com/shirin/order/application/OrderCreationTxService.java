@@ -40,8 +40,8 @@ public class OrderCreationTxService  {
                 command.currency(),
                 command.totalAmount()
         );
-        command.items().forEach(item ->
-                order.addItem(
+        command.items().forEach(
+                item -> order.addItem(
                         item.skuId(),
                         item.productName(),
                         item.quantity(),
