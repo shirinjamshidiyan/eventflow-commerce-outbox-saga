@@ -65,15 +65,7 @@ public class Order {
     private List<OrderItem> items = new ArrayList<>();
 
     protected Order() {}
-
-    //    public void changeStatusToCancelled(String reason) {
-//        if (this.status == OrderStatus.INVENTORY_RESERVED) {
-//            return;
-//        }
-//        this.status = OrderStatus.CANCELLED;
-//    }
-    //////////////////////////
-   public Order(
+    public Order(
                 UUID id,
                 String orderNumber,
                 UUID requestId,
@@ -93,8 +85,7 @@ public class Order {
             this.totalAmount = totalAmount;
             this.status = OrderStatus.INVENTORY_PENDING;
         }
-
-     public void addItem(
+        public void addItem(
                 UUID skuId,
                 String productName,
                 int quantity,
@@ -113,15 +104,45 @@ public class Order {
             this.items.add(item);
         }
 
-//        public void changeStatusToInventoryReserved() {
-//        if (this.status == OrderStatus.CANCELLED) {
-//            return;
-//        }
-//        if(this.status == OrderStatus.INVENTORY_PENDING) {
-//            this.status = OrderStatus.INVENTORY_RESERVED;
-//            touch();
-//        }
-//    }
+
+        public void changeStatusToInventoryReserved() {
+        if (this.status == OrderStatus.CANCELLED) {
+            return;
+        }
+        if(this.status == OrderStatus.INVENTORY_PENDING) {
+            this.status = OrderStatus.INVENTORY_RESERVED;
+        }
+    }
+
+    public void changeStatusToPaymentPending() {
+        if (this.status == OrderStatus.INVENTORY_RESERVED) {
+            this.status = OrderStatus.PAYMENT_PENDING;
+        }
+    }
+
+    public void changeStatusToConfirm() {
+        if (this.status == OrderStatus.PAYMENT_PENDING) {
+            this.status = OrderStatus.CONFIRMED;
+            this.confirmedAt = Instant.now();
+        }
+    }
+
+    public void changeStatusToCancellationPending(String reason) {
+        if (this.status == OrderStatus.INVENTORY_RESERVED
+                || this.status == OrderStatus.PAYMENT_PENDING) {
+            this.status = OrderStatus.CANCELLATION_PENDING;
+            this.cancellationReason = reason;
+        }
+    }
+
+    public void changeStatusToCancel(String reason) {
+        if (this.status != OrderStatus.CONFIRMED) {
+            this.status = OrderStatus.CANCELLED;
+            this.cancellationReason = reason;
+            this.cancelledAt = Instant.now();
+
+        }
+    }
 
     @PrePersist
     void onCreate() {
@@ -132,44 +153,5 @@ public class Order {
     void onUpdate() {
         this.updatedAt = Instant.now();
     }
-
-    //
-    //    public void markPaymentPending() {
-    //        if (this.status == OrderStatus.INVENTORY_RESERVED) {
-    //            this.status = OrderStatus.PAYMENT_PENDING;
-    //            touch();
-    //        }
-    //    }
-    //
-    //    public void confirm() {
-    //        if (this.status == OrderStatus.PAYMENT_PENDING) {
-    //            this.status = OrderStatus.CONFIRMED;
-    //            this.confirmedAt = Instant.now();
-    //            touch();
-    //        }
-    //    }
-//public void markCancellationPending(String reason) {
-//        if (this.status == OrderStatus.INVENTORY_RESERVED
-//                || this.status == OrderStatus.PAYMENT_PENDING) {
-//            this.status = OrderStatus.CANCELLATION_PENDING;
-//            this.cancellationReason = reason;
-//            touch();
-//        }
-//    }
-//
-//    public void cancel(String reason) {
-//        if (this.status != OrderStatus.CONFIRMED) {
-//            this.status = OrderStatus.CANCELLED;
-//            this.cancellationReason = reason;
-//            this.cancelledAt = Instant.now();
-//            touch();
-//        }
-//    }
-    // private void touch() {
-    //        this.updatedAt = Instant.now();
-    //    }
-
-
-
 
 }

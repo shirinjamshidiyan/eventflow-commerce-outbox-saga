@@ -16,7 +16,7 @@ import java.util.Set;
 
 @Component
 @AllArgsConstructor
-public class EventsConsumer {
+public class OrderServiceEventsConsumer {
 
     private final InventoryApplicationService inventoryService;
     private final ObjectMapper objectMapper;
@@ -46,7 +46,7 @@ public class EventsConsumer {
         try {
             return objectMapper.readValue(payload, eventType);
         } catch (JsonProcessingException ex) {
-            throw new InvalidEventPayloadException("Invalid Event JSON payload", ex);
+            throw new InvalidEventPayloadException("Invalid event JSON payload", ex);
         }
     }
 

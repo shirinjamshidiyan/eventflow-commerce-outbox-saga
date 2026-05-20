@@ -3,6 +3,7 @@ package com.shirin.order.messaging.consumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shirin.order.application.OrderApplicationService;
+import com.shirin.order.messaging.events.InventoryReleasedEvent;
 import com.shirin.order.messaging.events.InventoryReservationFailedEvent;
 import com.shirin.order.messaging.events.InventoryReservedEvent;
 import com.shirin.order.messaging.events.OrderCreatedEvent;
@@ -20,7 +21,7 @@ import java.util.Set;
 public class InventoryResultConsumer {
 
     private final ObjectMapper objectMapper;
-    private final OrderApplicationService service;
+    private final OrderApplicationService orderService;
     private final Validator validator;
 
     @KafkaListener(
@@ -28,10 +29,9 @@ public class InventoryResultConsumer {
             groupId = "${spring.kafka.consumer.group-id}")
     public void consumeInventoryReservedEvent(String payload) {
 
-
-        InventoryReservedEvent event = toEvent(payload, InventoryReservedEvent.class);
+        InventoryReservedEvent event = toEventObject(payload, InventoryReservedEvent.class);
         validate(event);
-        service.handleInventoryReservedEvent(event);
+        orderService.handleInventoryReservedEvent(event);
 
     }
 
@@ -40,18 +40,29 @@ public class InventoryResultConsumer {
             groupId = "${spring.kafka.consumer.group-id}")
     public void consumeInventoryReservationFailedEvent(String payload) {
 
-        InventoryReservationFailedEvent event = toEvent(payload, InventoryReservationFailedEvent.class);
+        InventoryReservationFailedEvent event = toEventObject(payload, InventoryReservationFailedEvent.class);
         validate(event);
-        service.handleInventoryReservationFailedEvent(event);
+        orderService.handleInventoryReservationFailedEvent(event);
+
+    }
+
+    @KafkaListener(
+            topics = "${app.kafka.topics.inventory-released}",
+            groupId = "${spring.kafka.consumer.group-id}")
+    public void consumeInventoryReleasedEvent(String payload) {
+
+        InventoryReleasedEvent event = toEventObject(payload, InventoryReleasedEvent.class);
+        validate(event);
+        orderService.handleInventoryReleasedEvent(event);
 
     }
 
 
-    private <T> T toEvent(String payload, Class<T> eventType) {
+    private <T> T toEventObject(String payload, Class<T> eventType) {
         try {
             return objectMapper.readValue(payload, eventType);
         } catch (JsonProcessingException ex) {
-            throw new InvalidEventPayloadException("Invalid JSON payload", ex);
+            throw new InvalidEventPayloadException("Invalid event JSON payload", ex);
         }
     }
     private <T> void validate(T event) {
