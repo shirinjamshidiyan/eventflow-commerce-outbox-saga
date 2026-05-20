@@ -28,11 +28,22 @@ public class InventoryItem {
 
     public void decrease(int requestedQuantity)
     {
-       if(!hasEnoughQuantity(requestedQuantity))
+        if (requestedQuantity <= 0) {
+            throw new IllegalArgumentException("requestedQuantity must be positive");
+        }
+
+        if(!hasEnoughQuantity(requestedQuantity))
        {
            throw new IllegalStateException("Not enough inventory");
        }
        this.availableQuantity -= requestedQuantity;
 
+    }
+
+    public void increase(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        this.availableQuantity += quantity;
     }
 }

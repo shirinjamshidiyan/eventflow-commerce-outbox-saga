@@ -19,6 +19,7 @@ public class OutboxPublisher {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final String inventoryReservedTopic;
     private final String inventoryReservationFailedTopic;
+    private final String inventoryReleasedTopic;
     private final int maxRetries;
     private final String owner;
     private final int claimLimit;
@@ -29,17 +30,19 @@ public class OutboxPublisher {
             KafkaTemplate<String, String> kafkaTemplate,
             @Value("${app.kafka.topics.inventory-reserved}") String inventoryReservedTopic,
             @Value("${app.kafka.topics.inventory-reservation-failed}") String inventoryReservationFailedTopic,
+            @Value("${app.kafka.topics.inventory-released}") String inventoryReleasedTopic,
             @Value("${app.outbox.max-retries}") int maxRetries,
-            @Value("${app.outbox.claim-limit}") int claiLimit
+            @Value("${app.outbox.claim-limit}") int claimLimit
     ) {
         this.claimService = claimService;
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
         this.inventoryReservedTopic = inventoryReservedTopic;
         this.inventoryReservationFailedTopic = inventoryReservationFailedTopic;
+        this.inventoryReleasedTopic = inventoryReleasedTopic;
         this.maxRetries = maxRetries;
         this.owner = "inventory-service-" + UUID.randomUUID();
-        this.claimLimit = claiLimit;
+        this.claimLimit = claimLimit;
     }
 
 
@@ -75,7 +78,7 @@ public class OutboxPublisher {
                 Thread.currentThread().interrupt();
             }
 
-        } catch (ExecutionException | TimeoutException ex) {
+        } catch (ExecutionException | TimeoutException | RuntimeException ex) {
             statusService.markPublishFailed(
                     event.getId(),
                     errorMessage(ex),
@@ -89,6 +92,7 @@ public class OutboxPublisher {
         }
     }
     private String errorMessage(Exception ex) {
+
         Throwable target = ex.getCause() != null ? ex.getCause() : ex;
         String message = target.getMessage();
 
@@ -102,6 +106,7 @@ public class OutboxPublisher {
                 {
                     case "InventoryReserved" -> inventoryReservedTopic;
                     case "InventoryReservationFailed" -> inventoryReservationFailedTopic;
+                    case "InventoryReleased" -> inventoryReleasedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
     }

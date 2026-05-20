@@ -5,7 +5,4 @@ public class InvalidEventPayloadException extends RuntimeException{
         super(message, cause);
     }
 
-    public InvalidEventPayloadException(String message) {
-        super(message);
-    }
 }

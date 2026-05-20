@@ -2,23 +2,16 @@ package com.shirin.inventory.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shirin.inventory.domain.InventoryItem;
-import com.shirin.inventory.domain.InventoryItemRepository;
+import com.shirin.inventory.domain.*;
 import com.shirin.inventory.idempotency.ProcessedEventRepository;
-import com.shirin.inventory.messaging.events.InventoryReservationFailedEvent;
-import com.shirin.inventory.messaging.events.InventoryReservedEvent;
-import com.shirin.inventory.messaging.events.OrderCreatedEvent;
-import com.shirin.inventory.messaging.events.OrderCreatedEventItem;
+import com.shirin.inventory.messaging.events.*;
 import com.shirin.inventory.outbox.OutboxEvent;
 import com.shirin.inventory.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -26,54 +19,83 @@ public class InventoryApplicationService {
 
     private final ProcessedEventRepository idempotencyRepository;
     private final InventoryItemRepository inventoryRepository;
+    private final InventoryReservationRepository reservationRepository;
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional
    public void processOrderCreatedEvent(OrderCreatedEvent event)  {
 
-        // processed_events insert
+        // idempotency check : processed_events insert
         int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
         if(inserted==0)
             return;
 
-        //for reducing the possibility of deadlock between multiple orders
-        // Arrange SKUs in order, then process and lock sorted items
-        List<OrderCreatedEventItem> sortedItems = event.items()
+        // Group requested_quantities by SKU and sum duplicate SKU entries
+        Map<UUID, Integer> requestedBySku = event.items().stream()
+                .collect(Collectors.toMap(
+                        OrderCreatedEventItem::skuId,
+                        OrderCreatedEventItem::quantity,
+                        Integer::sum
+                ));
+
+        //Sort SKUs to reduce deadlock risk during inventory locking.
+        List<Map.Entry<UUID, Integer>>  sortedRequests = requestedBySku
+                .entrySet()
                 .stream()
-                .sorted(Comparator.comparing(item -> item.skuId().toString()))
+                .sorted(Map.Entry.comparingByKey())
                 .toList();
 
-        List<InventoryItem> lockedItems = new ArrayList<>();
+
+        // LinkedHashMap preserves the insertion order of entries during iteration
+        Map<UUID, InventoryItem> lockedInventoryItems = new LinkedHashMap<>();
         boolean reserved = true;
         String failureReason = null;
 
         // inventory row lock
-        for (var item: sortedItems)
+        for (var item: sortedRequests)
         {
-          InventoryItem inventoryItem = inventoryRepository
-                  .findBySkuIdAndLock(item.skuId())
+           UUID itemSkuId = item.getKey();
+           Integer itemQuantity = item.getValue();
+
+           InventoryItem inventoryItem = inventoryRepository
+                  .findBySkuIdAndLock(itemSkuId)
                   .orElse(null);
 
           if(inventoryItem == null)
           {
               reserved = false;
-              failureReason = "SKU not found: " + item.skuId();
+              failureReason = "SKU not found: " + itemSkuId;
               break;
           }
 
-          if (!inventoryItem.hasEnoughQuantity(item.quantity())) {
+          if (!inventoryItem.hasEnoughQuantity(itemQuantity)) {
               reserved = false;
-              failureReason = "Not enough stock for SKU: " + item.skuId();
+              failureReason = "Not enough stock for SKU: " + itemSkuId;
               break;
           }
-            lockedItems.add(inventoryItem);
+            lockedInventoryItems.put(itemSkuId,inventoryItem );
        }
+
       if(reserved)
       {
-          // stock decrease
-          for (int i = 0; i < event.items().size(); i++) {
-              lockedItems.get(i).decrease(event.items().get(i).quantity());
+          for(var requestItem : sortedRequests)
+          {
+              UUID desiredSkuId = requestItem.getKey();
+              Integer desiredQuantity = requestItem.getValue();
+              // stock decrease
+              lockedInventoryItems.get(desiredSkuId).decrease(desiredQuantity);
+
+              // make a reservation
+              reservationRepository.save(
+                      new InventoryReservation(
+                              UUID.randomUUID(),
+                              event.orderId(),
+                              desiredSkuId,
+                              desiredQuantity
+                      )
+              );
+
           }
 
         InventoryReservedEvent successEvent = new InventoryReservedEvent(
@@ -81,31 +103,81 @@ public class InventoryApplicationService {
                 event.orderId()
         );
         //  result outbox insert
-        outboxRepository.save(OutboxEvent.createPendingEvent(
-                successEvent.eventId(),
-                "Inventory",
-                event.orderId(),
-                "InventoryReserved",
-                toJson(successEvent)
+        outboxRepository.save(
+                OutboxEvent.createPendingEvent(
+                        successEvent.eventId(),
+                        "Inventory",
+                        event.orderId(),
+                        "InventoryReserved",
+                        toJson(successEvent)
          ));
-      } else {
-        InventoryReservationFailedEvent failureEvent  = new InventoryReservationFailedEvent(
+      } else
+      {
+         InventoryReservationFailedEvent failureEvent  = new InventoryReservationFailedEvent(
                 UUID.randomUUID(), event.orderId(), failureReason);
 
           //  result outbox insert
-        outboxRepository.save(OutboxEvent.createPendingEvent(
-                failureEvent.eventId(),
-                "Inventory",
-                event.orderId(),
-                "InventoryReservationFailed",
-                toJson(failureEvent)
+         outboxRepository.save(
+                OutboxEvent.createPendingEvent(
+                        failureEvent.eventId(),
+                        "Inventory",
+                        event.orderId(),
+                        "InventoryReservationFailed",
+                        toJson(failureEvent)
         ));
     }
+   }
 
+    @Transactional
+    public void processInventoryReleaseRequestedEvent(InventoryReleaseRequestedEvent event) {
+
+        // idempotency check : processed_events insert
+        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        if(inserted==0)
+            return;
+
+        List<InventoryReservation> sortedList = reservationRepository
+                .findAllByOrderIdAndStatusForUpdate(
+                        event.orderId(),
+                        InventoryReservationStatus.RESERVED
+                );
+
+        for(InventoryReservation reservation : sortedList)
+        {
+            InventoryItem lockedInventoryItem = inventoryRepository
+                    .findBySkuIdAndLock(reservation.getSkuId())
+                    .orElseThrow();
+
+            lockedInventoryItem.increase(reservation.getQuantity());
+            reservation.release();
+
+        }
+
+        // Release is treated as idempotent. If no reserved rows exist (= sortedList.size=0)
+        // publishing InventoryReleased allows the saga to continue.
+        UUID eventId = UUID.randomUUID();
+
+        InventoryReleasedEvent successEvent = new InventoryReleasedEvent(
+               eventId , event.orderId()
+        );
+        outboxRepository.save(
+                OutboxEvent.createPendingEvent(
+                        eventId,
+                        "Inventory",
+                        event.orderId(),
+                        "InventoryReleased",
+                        toJson(successEvent)
+
+                )
+
+        );
     }
 
-    //change Checked Exception(JsonProcessingException) to Unchecked (IllegalStateException),
-    // so that @Transaction and rollback will work on it
+
+    /*
+     change Checked Exception(JsonProcessingException) to Unchecked (IllegalStateException),
+     so that @Transaction and rollback will work on it
+     */
     private String toJson(Object event) {
         try {
             return objectMapper.writeValueAsString(event);
