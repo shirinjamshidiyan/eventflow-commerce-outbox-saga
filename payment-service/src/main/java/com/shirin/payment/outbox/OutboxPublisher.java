@@ -1,9 +1,10 @@
-package com.shirin.order.outbox;
+package com.shirin.payment.outbox;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -16,9 +17,8 @@ public class OutboxPublisher {
    private final OutboxClaimService claimService;
     private final OutboxStatusService statusService;
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final String orderCreatedTopic;
-    private final String paymentRequestedTopic;
-    private final String inventoryReleaseRequestedTopic;
+    private final String paymentAuthorizedTopic;
+    private final String paymentFailedTopic;
     private final int maxRetries;
     private final String owner;
     private final int claimLimit;
@@ -27,20 +27,18 @@ public class OutboxPublisher {
             OutboxClaimService claimService,
             OutboxStatusService statusService,
             KafkaTemplate<String, String> kafkaTemplate,
-            @Value("${app.kafka.topics.order-created}") String orderCreatedTopic,
-            @Value("${app.kafka.topics.payment-requested}") String paymentRequestedTopic,
-            @Value("${app.kafka.topics.inventory-release-requested}") String inventoryReleaseRequestedTopic,
+            @Value("${app.kafka.topics.payment-authorized}") String paymentAuthorizedTopic,
+            @Value("${app.kafka.topics.payment-failed}") String paymentFailedTopic,
             @Value("${app.outbox.max-retries}") int maxRetries,
             @Value("${app.outbox.claim-limit}") int claimLimit
     ) {
         this.claimService = claimService;
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
-        this.orderCreatedTopic = orderCreatedTopic;
-        this.paymentRequestedTopic = paymentRequestedTopic;
-        this.inventoryReleaseRequestedTopic = inventoryReleaseRequestedTopic;
+        this.paymentAuthorizedTopic = paymentAuthorizedTopic;
+        this.paymentFailedTopic = paymentFailedTopic;
         this.maxRetries = maxRetries;
-        this.owner = "order-service-" + UUID.randomUUID();
+        this.owner = "payment-service-" + UUID.randomUUID();
         this.claimLimit = claimLimit;
     }
 
@@ -98,9 +96,8 @@ public class OutboxPublisher {
         return
                 switch (event.getEventType())
                 {
-                    case "OrderCreated" -> orderCreatedTopic;
-                    case "PaymentRequested" -> paymentRequestedTopic;
-                    case "InventoryReleaseRequested" -> inventoryReleaseRequestedTopic;
+                    case "PaymentAuthorized" -> paymentAuthorizedTopic;
+                    case "PaymentFailed" -> paymentFailedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
     }

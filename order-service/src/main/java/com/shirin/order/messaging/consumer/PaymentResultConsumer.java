@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shirin.order.application.OrderApplicationService;
 import com.shirin.order.messaging.events.InventoryReservationFailedEvent;
 import com.shirin.order.messaging.events.InventoryReservedEvent;
+import com.shirin.order.messaging.events.PaymentAuthorizedEvent;
+import com.shirin.order.messaging.events.PaymentFailedEvent;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
@@ -19,16 +21,37 @@ import java.util.Set;
 public class PaymentResultConsumer {
 
     private final ObjectMapper objectMapper;
-    private final OrderApplicationService service;
+    private final OrderApplicationService orderService;
     private final Validator validator;
 
 
+    @KafkaListener(
+            topics = "${app.kafka.topics.payment-authorized}",
+            groupId = "${spring.kafka.consumer.group-id}")
+    public void consumePaymentAuthorizedEvent(String payload) {
+
+        PaymentAuthorizedEvent event = toEventObject(payload, PaymentAuthorizedEvent.class);
+        validate(event);
+        orderService.handlePaymentAuthorizedEvent(event);
+
+    }
+
+    @KafkaListener(
+            topics = "${app.kafka.topics.payment-failed}",
+            groupId = "${spring.kafka.consumer.group-id}")
+    public void consumePaymentFailedEvent(String payload) {
+
+        PaymentFailedEvent event = toEventObject(payload, PaymentFailedEvent.class);
+        validate(event);
+        orderService.handlePaymentFailedEvent(event);
+
+    }
     
-    private <T> T toEvent(String payload, Class<T> eventType) {
+    private <T> T toEventObject(String payload, Class<T> eventType) {
         try {
             return objectMapper.readValue(payload, eventType);
         } catch (JsonProcessingException ex) {
-            throw new InvalidEventPayloadException("Invalid JSON payload", ex);
+            throw new InvalidEventPayloadException("Invalid payment result event JSON payload", ex);
         }
     }
     private <T> void validate(T event) {

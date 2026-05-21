@@ -31,7 +31,7 @@ public class InventoryApplicationService {
         if(inserted==0)
             return;
 
-        // Group requested_quantities by SKU and sum duplicate SKU entries
+        // Group requested quantities by SKU and sum duplicate SKU entries
         Map<UUID, Integer> requestedBySku = event.items().stream()
                 .collect(Collectors.toMap(
                         OrderCreatedEventItem::skuId,
@@ -47,7 +47,7 @@ public class InventoryApplicationService {
                 .toList();
 
 
-        // LinkedHashMap preserves the insertion order of entries during iteration
+        // Keep locked inventory items in the same order as the sorted SKU requests (using LinkedHashMap)
         Map<UUID, InventoryItem> lockedInventoryItems = new LinkedHashMap<>();
         boolean reserved = true;
         String failureReason = null;

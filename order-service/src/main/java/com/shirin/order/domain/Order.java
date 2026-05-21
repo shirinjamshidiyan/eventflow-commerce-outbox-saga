@@ -85,7 +85,8 @@ public class Order {
             this.totalAmount = totalAmount;
             this.status = OrderStatus.INVENTORY_PENDING;
         }
-        public void addItem(
+
+    public void addItem(
                 UUID skuId,
                 String productName,
                 int quantity,
@@ -104,43 +105,53 @@ public class Order {
             this.items.add(item);
         }
 
-
-        public void changeStatusToInventoryReserved() {
-        if (this.status == OrderStatus.CANCELLED) {
-            return;
-        }
-        if(this.status == OrderStatus.INVENTORY_PENDING) {
-            this.status = OrderStatus.INVENTORY_RESERVED;
-        }
-    }
-
-    public void changeStatusToPaymentPending() {
-        if (this.status == OrderStatus.INVENTORY_RESERVED) {
+    public boolean moveToPaymentPendingAfterInventoryReserved() {
+        if (this.status == OrderStatus.INVENTORY_PENDING) {
             this.status = OrderStatus.PAYMENT_PENDING;
+            return true;
         }
+        return false;
     }
 
-    public void changeStatusToConfirm() {
+    public boolean confirmPayment(UUID paymentId) {
         if (this.status == OrderStatus.PAYMENT_PENDING) {
             this.status = OrderStatus.CONFIRMED;
             this.confirmedAt = Instant.now();
+            //save paymentId
+            return true;
         }
+        return false;
     }
 
-    public void changeStatusToCancellationPending(String reason) {
-        if (this.status == OrderStatus.INVENTORY_RESERVED
-                || this.status == OrderStatus.PAYMENT_PENDING) {
+    public boolean startCancellation(String reason) {
+        if (this.status == OrderStatus.PAYMENT_PENDING) {
+
             this.status = OrderStatus.CANCELLATION_PENDING;
             this.cancellationReason = reason;
+            return true;
         }
+        return false;
     }
 
-    public void changeStatusToCancel(String reason) {
+
+    public boolean completeCancellation(String reason) {
+        if (this.status == OrderStatus.CANCELLATION_PENDING) {
+            this.status = OrderStatus.CANCELLED;
+            this.cancellationReason = reason;
+            this.cancelledAt = Instant.now();
+            return true;
+        }
+        if (this.status == OrderStatus.CANCELLED) {
+            return false;
+        }
+        return false;
+    }
+
+    public void cancelDirectly(String reason) {
         if (this.status != OrderStatus.CONFIRMED) {
             this.status = OrderStatus.CANCELLED;
             this.cancellationReason = reason;
             this.cancelledAt = Instant.now();
-
         }
     }
 
@@ -155,3 +166,5 @@ public class Order {
     }
 
 }
+
+

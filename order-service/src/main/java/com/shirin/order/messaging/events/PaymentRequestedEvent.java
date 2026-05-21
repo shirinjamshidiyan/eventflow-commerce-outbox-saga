@@ -1,13 +1,14 @@
-//package com.shirin.order.messaging.events;
-//
-//public record PaymentRequestedEvent(
-//        UUID eventId,
-//        UUID orderId,
-//        UUID paymentMethodId,
-//        Money amount
-//
-//
-//        //  "amount": 200.00,
-//        //  "currency": "DKK",
-//) {
-//}
+package com.shirin.order.messaging.events;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record PaymentRequestedEvent(
+        UUID eventId,
+        UUID orderId,
+        UUID paymentMethodId,
+        String currency,
+        BigDecimal amount
+
+) {
+}

@@ -1,27 +1,27 @@
 server:
-  port: ${SERVER_PORT:8081}
+  port: ${SERVER_PORT:8083}
 
 spring:
   application:
-    name: order-service
+    name: payment-service
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5433/orderdb}
-    username: ${DB_USERNAME:user1}
-    password: ${DB_PASSWORD:pass1}
+    url: ${DB_URL:jdbc:postgresql://localhost:5435/paymentdb}
+    username: ${DB_USERNAME:user3}
+    password: ${DB_PASSWORD:pass3}
+
+  flyway:
+    enabled: true
 
   jpa:
     hibernate:
       ddl-auto: validate
     show-sql: true
 
-  flyway:
-    enabled: true
-
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
     consumer:
-      group-id: order-service
+      group-id: payment-service
       auto-offset-reset: earliest
     producer:
       properties:
@@ -30,15 +30,9 @@ spring:
 app:
   kafka:
     topics:
-      order-created: order.created.v1
-      inventory-reserved: inventory.reserved.v1
-      inventory-reservation-failed: inventory.reservation.failed.v1
-      inventory-release-requested: inventory.release.requested.v1
-      inventory-released: inventory.released.v1
       payment-requested: payment.requested.v1
       payment-authorized: payment.authorized.v1
       payment-failed: payment.failed.v1
-
 
   outbox:
     claim-limit: 20
