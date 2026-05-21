@@ -33,6 +33,23 @@ services:
       timeout: 5s
       retries: 10
 
+  payment-db:
+    image: postgres:16
+    container_name: payment-db
+    environment:
+      POSTGRES_DB: paymentdb
+      POSTGRES_USER: user3
+      POSTGRES_PASSWORD: pass3
+    ports:
+      - "5435:5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user3 -d paymentdb" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   kafka:
     image: apache/kafka:3.9.0
     container_name: kafka
@@ -110,6 +127,25 @@ services:
       kafka:
         condition: service_healthy
 
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    ports:
+      - "8083:8080"
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://payment-db:5432/paymentdb
+      DB_USERNAME: user3
+      DB_PASSWORD: pass3
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      payment-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
 volumes:
   order-db-data:
   inventory-db-data:
+  payment-db-data:

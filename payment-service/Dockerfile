@@ -6,11 +6,11 @@ COPY pom.xml .
 COPY order-service/pom.xml order-service/pom.xml
 COPY inventory-service/pom.xml inventory-service/pom.xml
 COPY payment-service/pom.xml payment-service/pom.xml
-COPY order-service/src order-service/src
+COPY payment-service/src payment-service/src
 
-RUN mvn -pl order-service -am clean package -DskipTests
+RUN mvn -pl payment-service -am clean package -DskipTests
 
-RUN cp order-service/target/*.jar app.jar
+RUN cp payment-service/target/*.jar app.jar
 
 
 FROM eclipse-temurin:17-jre
