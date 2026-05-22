@@ -2,8 +2,8 @@ package com.shirin.payment.messaging.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shirin.contracts.order.PaymentRequestedEvent;
 import com.shirin.payment.application.PaymentApplicationService;
-import com.shirin.payment.messaging.events.PaymentRequestedEvent;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;

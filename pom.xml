@@ -20,6 +20,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>event-contracts</module>
         <module>order-service</module>
         <module>inventory-service</module>
         <module>payment-service</module>

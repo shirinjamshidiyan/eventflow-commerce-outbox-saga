@@ -2,10 +2,10 @@ package com.shirin.order.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shirin.contracts.order.OrderCreatedEvent;
+import com.shirin.contracts.order.OrderCreatedEventItem;
 import com.shirin.order.domain.Order;
 import com.shirin.order.domain.OrderRepository;
-import com.shirin.order.messaging.events.OrderCreatedEvent;
-import com.shirin.order.messaging.events.OrderCreatedEventItem;
 import com.shirin.order.outbox.OutboxEvent;
 import com.shirin.order.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;

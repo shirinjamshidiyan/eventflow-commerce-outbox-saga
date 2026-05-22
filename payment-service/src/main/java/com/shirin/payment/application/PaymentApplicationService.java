@@ -2,12 +2,12 @@ package com.shirin.payment.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shirin.contracts.order.PaymentRequestedEvent;
+import com.shirin.contracts.payment.PaymentAuthorizedEvent;
+import com.shirin.contracts.payment.PaymentFailedEvent;
 import com.shirin.payment.domain.Payment;
 import com.shirin.payment.domain.PaymentRepository;
 import com.shirin.payment.idempotency.ProcessedEventsRepository;
-import com.shirin.payment.messaging.events.PaymentAuthorizedEvent;
-import com.shirin.payment.messaging.events.PaymentFailedEvent;
-import com.shirin.payment.messaging.events.PaymentRequestedEvent;
 import com.shirin.payment.outbox.OutboxEvent;
 import com.shirin.payment.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;

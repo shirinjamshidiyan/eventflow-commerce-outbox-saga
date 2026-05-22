@@ -1,0 +1,9 @@
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\inventory\InventoryReleasedEvent.java
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\inventory\InventoryReservationFailedEvent.java
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\inventory\InventoryReservedEvent.java
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\order\InventoryReleaseRequestedEvent.java
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\order\OrderCreatedEvent.java
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\order\OrderCreatedEventItem.java
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\order\PaymentRequestedEvent.java
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\payment\PaymentAuthorizedEvent.java
+E:\SpringProjects\outbox-idempotency-kafka-demo\event-contracts\src\main\java\com\shirin\contracts\payment\PaymentFailedEvent.java
