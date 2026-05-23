@@ -2,11 +2,10 @@ package com.shirin.order.messaging.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shirin.contracts.inventory.InventoryReleasedEvent;
+import com.shirin.contracts.inventory.InventoryReservationFailedEvent;
+import com.shirin.contracts.inventory.InventoryReservedEvent;
 import com.shirin.order.application.OrderApplicationService;
-import com.shirin.order.messaging.events.InventoryReleasedEvent;
-import com.shirin.order.messaging.events.InventoryReservationFailedEvent;
-import com.shirin.order.messaging.events.InventoryReservedEvent;
-import com.shirin.order.messaging.events.OrderCreatedEvent;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;

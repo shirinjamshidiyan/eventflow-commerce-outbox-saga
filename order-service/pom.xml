@@ -61,6 +61,12 @@
             <artifactId>spring-kafka-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.shirin</groupId>
+            <artifactId>event-contracts</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

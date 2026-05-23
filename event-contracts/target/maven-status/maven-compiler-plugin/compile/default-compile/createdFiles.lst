@@ -1,0 +1,9 @@
+com\shirin\contracts\inventory\InventoryReservedEvent.class
+com\shirin\contracts\payment\PaymentAuthorizedEvent.class
+com\shirin\contracts\inventory\InventoryReleasedEvent.class
+com\shirin\contracts\order\OrderCreatedEvent.class
+com\shirin\contracts\payment\PaymentFailedEvent.class
+com\shirin\contracts\order\InventoryReleaseRequestedEvent.class
+com\shirin\contracts\order\OrderCreatedEventItem.class
+com\shirin\contracts\inventory\InventoryReservationFailedEvent.class
+com\shirin\contracts\order\PaymentRequestedEvent.class

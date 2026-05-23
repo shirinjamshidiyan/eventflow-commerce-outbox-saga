@@ -2,9 +2,14 @@ package com.shirin.inventory.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shirin.contracts.inventory.InventoryReleasedEvent;
+import com.shirin.contracts.inventory.InventoryReservationFailedEvent;
+import com.shirin.contracts.inventory.InventoryReservedEvent;
+import com.shirin.contracts.order.InventoryReleaseRequestedEvent;
+import com.shirin.contracts.order.OrderCreatedEvent;
+import com.shirin.contracts.order.OrderCreatedEventItem;
 import com.shirin.inventory.domain.*;
 import com.shirin.inventory.idempotency.ProcessedEventRepository;
-import com.shirin.inventory.messaging.events.*;
 import com.shirin.inventory.outbox.OutboxEvent;
 import com.shirin.inventory.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
