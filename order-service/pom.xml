@@ -65,7 +65,6 @@
         <dependency>
             <groupId>com.shirin</groupId>
             <artifactId>event-contracts</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
     </dependencies>
