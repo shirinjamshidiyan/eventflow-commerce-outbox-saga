@@ -2,12 +2,15 @@ package com.shirin.inventory.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shirin.contracts.inventory.InventoryReleasedEvent;
-import com.shirin.contracts.inventory.InventoryReservationFailedEvent;
-import com.shirin.contracts.inventory.InventoryReservedEvent;
-import com.shirin.contracts.order.InventoryReleaseRequestedEvent;
-import com.shirin.contracts.order.OrderCreatedEvent;
-import com.shirin.contracts.order.OrderCreatedEventItem;
+import com.shirin.contracts.common.EventEnvelope;
+import com.shirin.contracts.common.EventSources;
+import com.shirin.contracts.common.EventTypes;
+import com.shirin.contracts.inventory.InventoryReleasedPayload;
+import com.shirin.contracts.inventory.InventoryReservationFailedPayload;
+import com.shirin.contracts.inventory.InventoryReservedPayload;
+import com.shirin.contracts.order.InventoryReleaseRequestedPayload;
+import com.shirin.contracts.order.OrderCreatedItemsPayload;
+import com.shirin.contracts.order.OrderCreatedPayload;
 import com.shirin.inventory.domain.*;
 import com.shirin.inventory.idempotency.ProcessedEventRepository;
 import com.shirin.inventory.outbox.OutboxEvent;
@@ -29,18 +32,19 @@ public class InventoryApplicationService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-   public void processOrderCreatedEvent(OrderCreatedEvent event)  {
+   public void processOrderCreatedEvent(EventEnvelope<OrderCreatedPayload> envelope)  {
 
         // idempotency check : processed_events insert
-        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
         if(inserted==0)
             return;
 
+
         // Group requested quantities by SKU and sum duplicate SKU entries
-        Map<UUID, Integer> requestedBySku = event.items().stream()
+        Map<UUID, Integer> requestedBySku = envelope.payload().items().stream()
                 .collect(Collectors.toMap(
-                        OrderCreatedEventItem::skuId,
-                        OrderCreatedEventItem::quantity,
+                        OrderCreatedItemsPayload::skuId,
+                        OrderCreatedItemsPayload::quantity,
                         Integer::sum
                 ));
 
@@ -95,7 +99,7 @@ public class InventoryApplicationService {
               reservationRepository.save(
                       new InventoryReservation(
                               UUID.randomUUID(),
-                              event.orderId(),
+                              envelope.payload().orderId(),
                               desiredSkuId,
                               desiredQuantity
                       )
@@ -103,47 +107,72 @@ public class InventoryApplicationService {
 
           }
 
-        InventoryReservedEvent successEvent = new InventoryReservedEvent(
-                UUID.randomUUID(),
-                event.orderId()
-        );
-        //  result outbox insert
+
+          UUID eventId =  UUID.randomUUID();
+          InventoryReservedPayload successPayload = new InventoryReservedPayload(envelope.payload().orderId());
+
+          EventEnvelope<InventoryReservedPayload> newEnvelope = EventEnvelope.create(
+                  eventId,
+                  EventTypes.INVENTORY_RESERVED,
+                  1,
+                  envelope.correlationId(),
+                  envelope.eventId(),
+                  EventSources.INVENTORY_SERVICE,
+                  successPayload
+          );
+
+          //  result outbox insert
         outboxRepository.save(
                 OutboxEvent.createPendingEvent(
-                        successEvent.eventId(),
+                        eventId,
                         "Inventory",
-                        event.orderId(),
-                        "InventoryReserved",
-                        toJson(successEvent)
+                        envelope.payload().orderId(),
+                        EventTypes.INVENTORY_RESERVED,
+                        toJson(newEnvelope)
          ));
       } else
       {
-         InventoryReservationFailedEvent failureEvent  = new InventoryReservationFailedEvent(
-                UUID.randomUUID(), event.orderId(), failureReason);
+
+
+          UUID eventId =  UUID.randomUUID();
+
+          InventoryReservationFailedPayload failurePayload =
+                  new InventoryReservationFailedPayload( envelope.payload().orderId(), failureReason);
+
+          EventEnvelope<InventoryReservationFailedPayload> newEnvelope =
+                  EventEnvelope.create(
+                          eventId,
+                          EventTypes.INVENTORY_RESERVATION_FAILED,
+                          1,
+                          envelope.correlationId(),
+                          envelope.eventId(),
+                          EventSources.INVENTORY_SERVICE,
+                          failurePayload
+                  );
 
           //  result outbox insert
          outboxRepository.save(
                 OutboxEvent.createPendingEvent(
-                        failureEvent.eventId(),
+                        eventId,
                         "Inventory",
-                        event.orderId(),
-                        "InventoryReservationFailed",
-                        toJson(failureEvent)
+                        envelope.payload().orderId(),
+                        EventTypes.INVENTORY_RESERVATION_FAILED,
+                        toJson(newEnvelope)
         ));
     }
    }
 
     @Transactional
-    public void processInventoryReleaseRequestedEvent(InventoryReleaseRequestedEvent event) {
+    public void processInventoryReleaseRequestedEvent( EventEnvelope<InventoryReleaseRequestedPayload> envelope) {
 
         // idempotency check : processed_events insert
-        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
         if(inserted==0)
             return;
 
         List<InventoryReservation> sortedList = reservationRepository
                 .findAllByOrderIdAndStatusForUpdate(
-                        event.orderId(),
+                        envelope.payload().orderId(),
                         InventoryReservationStatus.RESERVED
                 );
 
@@ -162,19 +191,28 @@ public class InventoryApplicationService {
         // publishing InventoryReleased allows the saga to continue.
         UUID eventId = UUID.randomUUID();
 
-        InventoryReleasedEvent successEvent = new InventoryReleasedEvent(
-               eventId , event.orderId()
-        );
+        InventoryReleasedPayload payload = new InventoryReleasedPayload(envelope.payload().orderId());
+
+        EventEnvelope<InventoryReleasedPayload> newEnvelope =
+                EventEnvelope.create(
+                        eventId,
+                        EventTypes.INVENTORY_RELEASED,
+                        1,
+                        envelope.correlationId(),
+                        envelope.eventId(),
+                        EventSources.INVENTORY_SERVICE,
+                        payload
+                );
+
         outboxRepository.save(
                 OutboxEvent.createPendingEvent(
                         eventId,
                         "Inventory",
-                        event.orderId(),
-                        "InventoryReleased",
-                        toJson(successEvent)
+                        payload.orderId(),
+                        EventTypes.INVENTORY_RELEASED,
+                        toJson(newEnvelope)
 
                 )
-
         );
     }
 
@@ -183,11 +221,11 @@ public class InventoryApplicationService {
      change Checked Exception(JsonProcessingException) to Unchecked (IllegalStateException),
      so that @Transaction and rollback will work on it
      */
-    private String toJson(Object event) {
+    private String toJson(Object envelope) {
         try {
-            return objectMapper.writeValueAsString(event);
+            return objectMapper.writeValueAsString(envelope);
         } catch (JsonProcessingException ex) {
-            throw new EventSerializationException("Failed to serialize outgoing inventory event", ex);
+            throw new EventSerializationException("Failed to serialize outgoing inventory envelope", ex);
         }
     }
 }

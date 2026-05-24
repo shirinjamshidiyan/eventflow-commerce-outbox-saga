@@ -2,9 +2,12 @@ package com.shirin.payment.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shirin.contracts.order.PaymentRequestedEvent;
-import com.shirin.contracts.payment.PaymentAuthorizedEvent;
-import com.shirin.contracts.payment.PaymentFailedEvent;
+import com.shirin.contracts.common.EventEnvelope;
+import com.shirin.contracts.common.EventSources;
+import com.shirin.contracts.common.EventTypes;
+import com.shirin.contracts.order.PaymentRequestedPayload;
+import com.shirin.contracts.payment.PaymentAuthorizedPayload;
+import com.shirin.contracts.payment.PaymentFailedPayload;
 import com.shirin.payment.domain.Payment;
 import com.shirin.payment.domain.PaymentRepository;
 import com.shirin.payment.idempotency.ProcessedEventsRepository;
@@ -27,77 +30,98 @@ public class PaymentApplicationService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public void processPaymentRequestedEvent(PaymentRequestedEvent event)
+    public void processPaymentRequestedEvent(EventEnvelope<PaymentRequestedPayload> envelope)
     {
 
-        //idempotency check1: prevents processing the same event
-        int exist = idempotencyRepository.insertIfAbsent(event.eventId());
-        if(exist==0) return;
+        // idempotency check1: prevents processing the same event
+        int inserted  = idempotencyRepository.insertIfAbsent(envelope.eventId());
+        if(inserted ==0) return;
 
-        // //idempotency check2: Prevents creating multiple payments for the same order.
+        // Idempotency check 2: prevents creating more than one payment for the same order.
         Payment existingPayment = paymentRepository
-                .findByOrderId(event.orderId())
+                .findByOrderId(envelope.payload().orderId())
                 .orElse(null);
 
         if (existingPayment != null) {
             return;
         }
+        PaymentRequestedPayload payload = envelope.payload();
 
         Payment payment = new Payment(
                 UUID.randomUUID(),
-                event.orderId(),
-                event.paymentMethodId(),
-                event.currency(),
-                event.amount()
+                payload.orderId(),
+                payload.paymentMethodId(),
+                payload.currency(),
+                payload.amount()
         );
 
-        PaymentDecision decision = authorizer.authorize( event.paymentMethodId(), event.amount()); //Simulation
+        PaymentDecision decision = authorizer.authorize( payload.paymentMethodId(), payload.amount()); //Simulation
 
         if (decision.approved()) {
 
             payment.authorize();
             paymentRepository.save(payment);
 
-            PaymentAuthorizedEvent resultEvent = new PaymentAuthorizedEvent(
-                    UUID.randomUUID(),
-                    event.orderId(),
+            UUID eventId= UUID.randomUUID();
+            PaymentAuthorizedPayload newPayload = new PaymentAuthorizedPayload(
+                    payload.orderId(),
                     payment.getId()
             );
+            EventEnvelope<PaymentAuthorizedPayload> newEnvelope = EventEnvelope.create(
+                    eventId,
+                    EventTypes.PAYMENT_AUTHORIZED,
+                    1,
+                    envelope.correlationId(),
+                    envelope.eventId(),
+                    EventSources.PAYMENT_SERVICE,
+                    newPayload);
 
             outboxRepository.save(OutboxEvent.createPendingEvent(
-                    resultEvent.eventId(),
+                    eventId,
                     "Payment",
-                    payment.getId(),
-                    "PaymentAuthorized",
-                    toJson(resultEvent)
+                    payload.orderId(),
+                    EventTypes.PAYMENT_AUTHORIZED,
+                    toJson(newEnvelope)
             ));
             return;
 
         }
+
         payment.fail(decision.reason());
         paymentRepository.save(payment);
 
-        PaymentFailedEvent resultEvent = new PaymentFailedEvent(
-                UUID.randomUUID(),
-                event.orderId(),
+        UUID eventId= UUID.randomUUID();
+
+        PaymentFailedPayload failedPayload = new PaymentFailedPayload(
+                payload.orderId(),
                 payment.getId(),
                 decision.reason()
         );
+        EventEnvelope<PaymentFailedPayload> newEnvelope = EventEnvelope.create(
+                eventId,
+                EventTypes.PAYMENT_FAILED,
+                1,
+                envelope.correlationId(),
+                envelope.eventId(),
+                EventSources.PAYMENT_SERVICE,
+                failedPayload);
+
         outboxRepository.save(OutboxEvent.createPendingEvent(
-                resultEvent.eventId(),
+                eventId,
                 "Payment",
-                payment.getId(),
-                "PaymentFailed",
-                toJson(resultEvent)
+                payload.orderId(),
+                EventTypes.PAYMENT_FAILED,
+                toJson(newEnvelope)
         ));
+
     }
 
 
-    private String toJson(Object event) {
+    private String toJson(Object envelope) {
         try {
-            return objectMapper.writeValueAsString(event);
+            return objectMapper.writeValueAsString(envelope);
         } catch (JsonProcessingException ex) {
-            throw new EventSerializationException("Failed to serialize outgoing payment event", ex);
+            throw new EventSerializationException("Failed to serialize outgoing payment envelope", ex);
         }
     }
 }

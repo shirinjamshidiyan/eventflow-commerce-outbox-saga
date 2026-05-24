@@ -1,10 +1,13 @@
 package com.shirin.order.messaging.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shirin.contracts.inventory.InventoryReleasedEvent;
-import com.shirin.contracts.inventory.InventoryReservationFailedEvent;
-import com.shirin.contracts.inventory.InventoryReservedEvent;
+import com.shirin.contracts.common.EventEnvelope;
+import com.shirin.contracts.common.EventTypes;
+import com.shirin.contracts.inventory.InventoryReleasedPayload;
+import com.shirin.contracts.inventory.InventoryReservationFailedPayload;
+import com.shirin.contracts.inventory.InventoryReservedPayload;
 import com.shirin.order.application.OrderApplicationService;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -28,9 +31,12 @@ public class InventoryResultConsumer {
             groupId = "${spring.kafka.consumer.group-id}")
     public void consumeInventoryReservedEvent(String payload) {
 
-        InventoryReservedEvent event = toEventObject(payload, InventoryReservedEvent.class);
-        validate(event);
-        orderService.handleInventoryReservedEvent(event);
+        EventEnvelope<InventoryReservedPayload> envelope = toEnvelope(payload, InventoryReservedPayload.class);
+
+        validateEnvelope(envelope);
+        validateEventType(envelope, EventTypes.INVENTORY_RESERVED);
+
+        orderService.handleInventoryReservedEvent(envelope);
 
     }
 
@@ -39,9 +45,12 @@ public class InventoryResultConsumer {
             groupId = "${spring.kafka.consumer.group-id}")
     public void consumeInventoryReservationFailedEvent(String payload) {
 
-        InventoryReservationFailedEvent event = toEventObject(payload, InventoryReservationFailedEvent.class);
-        validate(event);
-        orderService.handleInventoryReservationFailedEvent(event);
+        EventEnvelope<InventoryReservationFailedPayload> envelope = toEnvelope (payload,InventoryReservationFailedPayload.class);
+
+        validateEnvelope(envelope);
+        validateEventType(envelope, EventTypes.INVENTORY_RESERVATION_FAILED);
+
+        orderService.handleInventoryReservationFailedEvent(envelope);
 
     }
 
@@ -50,22 +59,42 @@ public class InventoryResultConsumer {
             groupId = "${spring.kafka.consumer.group-id}")
     public void consumeInventoryReleasedEvent(String payload) {
 
-        InventoryReleasedEvent event = toEventObject(payload, InventoryReleasedEvent.class);
-        validate(event);
-        orderService.handleInventoryReleasedEvent(event);
+        EventEnvelope<InventoryReleasedPayload> envelope = toEnvelope(payload,InventoryReleasedPayload.class);
+
+        validateEnvelope(envelope);
+        validateEventType(envelope, EventTypes.INVENTORY_RELEASED);
+
+        orderService.handleInventoryReleasedEvent(envelope);
 
     }
 
 
-    private <T> T toEventObject(String payload, Class<T> eventType) {
+    private <T> EventEnvelope<T> toEnvelope(String payload, Class<T> payloadType) {
         try {
-            return objectMapper.readValue(payload, eventType);
+            JavaType envelopeType = objectMapper
+                    .getTypeFactory()
+                    .constructParametricType(EventEnvelope.class, payloadType);
+
+            return objectMapper.readValue(payload , envelopeType);
         } catch (JsonProcessingException ex) {
-            throw new InvalidEventPayloadException("Invalid event JSON payload", ex);
+            throw new InvalidEventPayloadException("Invalid inventory result envelope JSON payload", ex);
         }
     }
-    private <T> void validate(T event) {
-        Set<ConstraintViolation<T>> violations = validator.validate(event);
+
+
+    private void validateEventType(EventEnvelope<?> envelope, String expectedEventType) {
+        if (!expectedEventType.equals(envelope.eventType())) {
+            throw new InvalidEventPayloadException(
+                    "Unexpected event type. Expected: "
+                            + expectedEventType
+                            + ", actual: "
+                            + envelope.eventType()
+            );
+        }
+    }
+
+    private <T> void validateEnvelope(EventEnvelope<T> envelope) {
+        Set<ConstraintViolation<EventEnvelope<T>>> violations = validator.validate(envelope);
 
         if (!violations.isEmpty()) {
             throw new ConstraintViolationException(violations);

@@ -2,13 +2,16 @@ package com.shirin.order.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shirin.contracts.inventory.InventoryReleasedEvent;
-import com.shirin.contracts.inventory.InventoryReservationFailedEvent;
-import com.shirin.contracts.inventory.InventoryReservedEvent;
-import com.shirin.contracts.order.InventoryReleaseRequestedEvent;
-import com.shirin.contracts.order.PaymentRequestedEvent;
-import com.shirin.contracts.payment.PaymentAuthorizedEvent;
-import com.shirin.contracts.payment.PaymentFailedEvent;
+import com.shirin.contracts.common.EventEnvelope;
+import com.shirin.contracts.common.EventSources;
+import com.shirin.contracts.common.EventTypes;
+import com.shirin.contracts.inventory.InventoryReleasedPayload;
+import com.shirin.contracts.inventory.InventoryReservationFailedPayload;
+import com.shirin.contracts.inventory.InventoryReservedPayload;
+import com.shirin.contracts.order.InventoryReleaseRequestedPayload;
+import com.shirin.contracts.order.PaymentRequestedPayload;
+import com.shirin.contracts.payment.PaymentAuthorizedPayload;
+import com.shirin.contracts.payment.PaymentFailedPayload;
 import com.shirin.order.domain.Order;
 import com.shirin.order.domain.OrderRepository;
 import com.shirin.order.idempotency.ProcessedEventRepository;
@@ -55,105 +58,121 @@ public class OrderApplicationService {
     }
 
     @Transactional
-    public void handleInventoryReservedEvent(InventoryReservedEvent event)
+    public void handleInventoryReservedEvent(EventEnvelope<InventoryReservedPayload> envelope)
     {
-        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
         if(inserted ==0 ) return;
 
-        Order order = orderRepository.findById(event.orderId()).orElseThrow();
+        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
         boolean moved = order.moveToPaymentPendingAfterInventoryReserved();
 
         if(!moved) return;
 
         UUID eventId = UUID.randomUUID();
-        PaymentRequestedEvent paymentRequestedEvent = new PaymentRequestedEvent(
-                eventId,
+
+        PaymentRequestedPayload payload = new PaymentRequestedPayload(
                 order.getId(),
                 order.getPaymentMethodId(),
                 order.getCurrency(),
                 order.getTotalAmount()
         );
+        EventEnvelope<PaymentRequestedPayload> newEnvelope = EventEnvelope.create(
+                eventId,
+                EventTypes.PAYMENT_REQUESTED,
+                1,
+                envelope.correlationId(),
+                envelope.eventId(),
+                EventSources.ORDER_SERVICE,
+                payload);
+
 
         outboxRepository.save(
                 OutboxEvent.createPendingEvent(
                         eventId,
                         "Order",
                         order.getId(),
-                        "PaymentRequested",
-                        toJson(paymentRequestedEvent)
+                        EventTypes.PAYMENT_REQUESTED,
+                        toJson(newEnvelope)
         ));
 
     }
 
     @Transactional
-    public void handleInventoryReservationFailedEvent(InventoryReservationFailedEvent event)
+    public void handleInventoryReservationFailedEvent(EventEnvelope<InventoryReservationFailedPayload> envelope)
     {
-        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
         if(inserted ==0 ) return;
 
-        Order order = orderRepository.findById(event.orderId()).orElseThrow();
-        order.cancelDirectly(event.reason());
+        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+        order.cancelDirectly(envelope.payload().reason());
 
     }
 
     @Transactional
-    public void handlePaymentAuthorizedEvent(PaymentAuthorizedEvent event)
+    public void handlePaymentAuthorizedEvent(EventEnvelope<PaymentAuthorizedPayload> envelope)
     {
-        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
         if(inserted ==0 ) return;
 
-        Order order = orderRepository.findById(event.orderId()).orElseThrow();
-        order.confirmPayment(event.paymentId());
+        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+        order.confirmPayment(envelope.payload().paymentId());
         //event: send to notification
 
     }
 
     @Transactional
-    public void handleInventoryReleasedEvent(InventoryReleasedEvent event)
+    public void handleInventoryReleasedEvent(EventEnvelope<InventoryReleasedPayload> envelope)
     {
-        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
         if(inserted ==0 ) return;
 
-        Order order = orderRepository.findById(event.orderId()).orElseThrow();
+        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
         order.completeCancellation("Inventory reservation released");
 
     }
 
     @Transactional
-    public void handlePaymentFailedEvent(PaymentFailedEvent event)
+    public void handlePaymentFailedEvent(EventEnvelope<PaymentFailedPayload> envelope)
     {
-        int inserted = idempotencyRepository.insertIfAbsent(event.eventId());
+        int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
         if(inserted ==0 ) return;
 
-        Order order = orderRepository.findById(event.orderId()).orElseThrow();
-        boolean cancellationStarted = order.startCancellation(event.reason());
+        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+        boolean cancellationStarted = order.startCancellation(envelope.payload().reason());
 
         if (!cancellationStarted) {
             return;
         }
 
+
         UUID eventId = UUID.randomUUID();
-        InventoryReleaseRequestedEvent releaseRequestedEvent  = new InventoryReleaseRequestedEvent(
-                eventId, order.getId()
-        );
+        InventoryReleaseRequestedPayload payload  = new InventoryReleaseRequestedPayload(order.getId());
+
+        EventEnvelope<InventoryReleaseRequestedPayload> newEnvelope = EventEnvelope.create(
+                eventId,
+                EventTypes.INVENTORY_RELEASE_REQUESTED,
+                1,
+                envelope.correlationId(),
+                envelope.eventId(),
+                EventSources.ORDER_SERVICE,
+                payload);
+
         outboxRepository.save(
                 OutboxEvent.createPendingEvent(
                         eventId,
                         "Order",
                         order.getId(),
-                        "InventoryReleaseRequested",
-                        toJson(releaseRequestedEvent)
-
-                )
+                        EventTypes.INVENTORY_RELEASE_REQUESTED,
+                        toJson(newEnvelope))
         );
 
     }
 
-    private String toJson(Object event) {
+    private String toJson(Object envelope) {
         try {
-            return objectMapper.writeValueAsString(event);
+            return objectMapper.writeValueAsString(envelope);
         } catch (JsonProcessingException ex) {
-            throw new EventSerializationException("Failed to serialize outgoing order event", ex);
+            throw new EventSerializationException("Failed to serialize outgoing order envelope", ex);
         }
     }
 

@@ -1,10 +1,15 @@
 package com.shirin.payment.outbox;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shirin.contracts.common.EventTypes;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -17,6 +22,7 @@ public class OutboxPublisher {
    private final OutboxClaimService claimService;
     private final OutboxStatusService statusService;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
     private final String paymentAuthorizedTopic;
     private final String paymentFailedTopic;
     private final int maxRetries;
@@ -27,6 +33,7 @@ public class OutboxPublisher {
             OutboxClaimService claimService,
             OutboxStatusService statusService,
             KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper,
             @Value("${app.kafka.topics.payment-authorized}") String paymentAuthorizedTopic,
             @Value("${app.kafka.topics.payment-failed}") String paymentFailedTopic,
             @Value("${app.outbox.max-retries}") int maxRetries,
@@ -35,6 +42,7 @@ public class OutboxPublisher {
         this.claimService = claimService;
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
         this.paymentAuthorizedTopic = paymentAuthorizedTopic;
         this.paymentFailedTopic = paymentFailedTopic;
         this.maxRetries = maxRetries;
@@ -50,14 +58,23 @@ public class OutboxPublisher {
 
         for (OutboxEvent event : events) {
             publish(event);
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
         }
     }
 
-
     private void publish(OutboxEvent event) {
         try {
+            ProducerRecord<String,String> producerRecord = new ProducerRecord<>(
+                    topicFor(event),
+                    event.getAggregateId().toString(),
+                    event.getPayload()
+            );
+            addEnvelopeHeaders(producerRecord, event.getPayload());
+
             kafkaTemplate
-                    .send(topicFor(event), event.getAggregateId().toString() , event.getPayload())
+                    .send(producerRecord)
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
@@ -83,6 +100,31 @@ public class OutboxPublisher {
         }
     }
 
+    private void addEnvelopeHeaders(ProducerRecord<String, String> record, String payload) {
+
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            addHeader(record, "event-id", root.path("eventId").asText());
+            addHeader(record, "event-type", root.path("eventType").asText());
+            addHeader(record, "event-version", root.path("eventVersion").asText());
+            addHeader(record, "correlation-id", root.path("correlationId").asText());
+            addHeader(record, "causation-id", root.path("causationId").asText());
+            addHeader(record, "source", root.path("source").asText());
+
+        } catch (Exception ex)
+        {
+            throw new InvalidOutboxEnvelopeException("Failed to extract envelope headers", ex);
+        }
+    }
+
+    private void addHeader(ProducerRecord<String,String> record, String key, String value)
+    {
+        if (value == null || value.isBlank() || "null".equals(value)) {
+            return;
+        }
+        record.headers().add(key, value.getBytes(StandardCharsets.UTF_8));
+    }
+
     private String errorMessage(Exception ex) {
 
         Throwable target = ex.getCause() != null ? ex.getCause() : ex;
@@ -93,11 +135,12 @@ public class OutboxPublisher {
 
     }
     private String topicFor(OutboxEvent event) {
+
         return
                 switch (event.getEventType())
                 {
-                    case "PaymentAuthorized" -> paymentAuthorizedTopic;
-                    case "PaymentFailed" -> paymentFailedTopic;
+                    case EventTypes.PAYMENT_AUTHORIZED -> paymentAuthorizedTopic;
+                    case EventTypes.PAYMENT_FAILED -> paymentFailedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
     }

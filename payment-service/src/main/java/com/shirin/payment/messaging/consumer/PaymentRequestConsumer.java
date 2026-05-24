@@ -1,8 +1,11 @@
 package com.shirin.payment.messaging.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shirin.contracts.order.PaymentRequestedEvent;
+import com.shirin.contracts.common.EventEnvelope;
+import com.shirin.contracts.common.EventTypes;
+import com.shirin.contracts.order.PaymentRequestedPayload;
 import com.shirin.payment.application.PaymentApplicationService;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -28,25 +31,45 @@ public class PaymentRequestConsumer {
     )
     public void consumePaymentRequestedEvent(String payload)
     {
-        PaymentRequestedEvent event = toEventObject(payload, PaymentRequestedEvent.class);
-         validate(event);
-        paymentApplicationService.processPaymentRequestedEvent(event);
+        EventEnvelope<PaymentRequestedPayload> envelope = toEnvelope(payload, PaymentRequestedPayload.class);
+
+        validateEnvelope(envelope);
+        validateEventType(envelope, EventTypes.PAYMENT_REQUESTED);
+
+        paymentApplicationService.processPaymentRequestedEvent(envelope);
 
     }
 
-    private <T> T toEventObject(String payload, Class<T> eventType) {
+    private <T> EventEnvelope<T> toEnvelope(String payload, Class<T> payloadType) {
         try {
-            return objectMapper.readValue(payload, eventType);
+            JavaType envelopeType = objectMapper
+                    .getTypeFactory()
+                    .constructParametricType(EventEnvelope.class, payloadType);
+
+            return objectMapper.readValue(payload, envelopeType);
         } catch (JsonProcessingException ex) {
-            throw new InvalidEventPayloadException("Invalid payment event JSON payload", ex);
+            throw new InvalidEventPayloadException("Invalid payment envelope JSON payload", ex);
         }
     }
 
-    private <T> void validate(T event) {
-        Set<ConstraintViolation<T>> violations = validator.validate(event);
+    private <T> void validateEnvelope(EventEnvelope<T>  envelope) {
+        Set<ConstraintViolation<EventEnvelope<T>>> violations = validator.validate(envelope);
 
         if (!violations.isEmpty()) {
             throw new ConstraintViolationException(violations);
         }
     }
+
+    private void validateEventType(EventEnvelope<?> envelope, String expectedEventType) {
+        if (!expectedEventType.equals(envelope.eventType())) {
+            throw new InvalidEventPayloadException(
+                    "Unexpected event type. Expected: "
+                            + expectedEventType
+                            + ", actual: "
+                            + envelope.eventType()
+            );
+        }
+    }
 }
+
+

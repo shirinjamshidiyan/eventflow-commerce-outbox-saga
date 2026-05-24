@@ -137,7 +137,7 @@ public class Order {
     public boolean completeCancellation(String reason) {
         if (this.status == OrderStatus.CANCELLATION_PENDING) {
             this.status = OrderStatus.CANCELLED;
-            this.cancellationReason = reason; //todo
+           // this.cancellationReason = reason; //todo
             this.cancelledAt = Instant.now();
             return true;
         }

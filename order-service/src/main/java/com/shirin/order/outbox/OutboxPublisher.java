@@ -1,9 +1,15 @@
 package com.shirin.order.outbox;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shirin.contracts.common.EventTypes;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -16,6 +22,7 @@ public class OutboxPublisher {
    private final OutboxClaimService claimService;
     private final OutboxStatusService statusService;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
     private final String orderCreatedTopic;
     private final String paymentRequestedTopic;
     private final String inventoryReleaseRequestedTopic;
@@ -23,10 +30,12 @@ public class OutboxPublisher {
     private final String owner;
     private final int claimLimit;
 
+
     public OutboxPublisher(
             OutboxClaimService claimService,
             OutboxStatusService statusService,
             KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper,
             @Value("${app.kafka.topics.order-created}") String orderCreatedTopic,
             @Value("${app.kafka.topics.payment-requested}") String paymentRequestedTopic,
             @Value("${app.kafka.topics.inventory-release-requested}") String inventoryReleaseRequestedTopic,
@@ -36,6 +45,7 @@ public class OutboxPublisher {
         this.claimService = claimService;
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
         this.orderCreatedTopic = orderCreatedTopic;
         this.paymentRequestedTopic = paymentRequestedTopic;
         this.inventoryReleaseRequestedTopic = inventoryReleaseRequestedTopic;
@@ -52,14 +62,24 @@ public class OutboxPublisher {
 
         for (OutboxEvent event : events) {
             publish(event);
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
         }
     }
 
 
     private void publish(OutboxEvent event) {
         try {
+            ProducerRecord<String,String> producerRecord= new ProducerRecord<>(
+                    topicFor(event),
+                    event.getAggregateId().toString(),
+                    event.getPayload()
+            );
+            addEnvelopeHeaders(producerRecord, event.getPayload());
+
             kafkaTemplate
-                    .send(topicFor(event), event.getAggregateId().toString() , event.getPayload())
+                    .send(producerRecord)
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
@@ -85,6 +105,31 @@ public class OutboxPublisher {
         }
     }
 
+    private void addEnvelopeHeaders(ProducerRecord<String, String> record, String payload) {
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+
+            addHeader(record, "event-id", root.path("eventId").asText());
+            addHeader(record, "event-type", root.path("eventType").asText());
+            addHeader(record, "event-version", root.path("eventVersion").asText());
+            addHeader(record, "correlation-id", root.path("correlationId").asText());
+            addHeader(record, "causation-id", root.path("causationId").asText());
+            addHeader(record, "source", root.path("source").asText());
+
+        }catch (Exception ex)
+        {
+            throw new InvalidOutboxEnvelopeException("Failed to extract envelope headers", ex);
+        }
+    }
+
+    private void addHeader(ProducerRecord<String, String> record, String name, String value) {
+        if (value == null || value.isBlank() || "null".equals(value)) {
+            return;
+        }
+        record.headers().add(name, value.getBytes(StandardCharsets.UTF_8));
+    }
+
+
     private String errorMessage(Exception ex) {
 
         Throwable target = ex.getCause() != null ? ex.getCause() : ex;
@@ -98,11 +143,12 @@ public class OutboxPublisher {
         return
                 switch (event.getEventType())
                 {
-                    case "OrderCreated" -> orderCreatedTopic;
-                    case "PaymentRequested" -> paymentRequestedTopic;
-                    case "InventoryReleaseRequested" -> inventoryReleaseRequestedTopic;
+                    case  EventTypes.ORDER_CREATED -> orderCreatedTopic;
+                    case EventTypes.PAYMENT_REQUESTED -> paymentRequestedTopic;
+                    case EventTypes.INVENTORY_RELEASE_REQUESTED -> inventoryReleaseRequestedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
+
     }
 
 

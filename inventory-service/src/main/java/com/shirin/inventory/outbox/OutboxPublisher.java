@@ -1,10 +1,15 @@
 package com.shirin.inventory.outbox;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shirin.contracts.common.EventTypes;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -17,6 +22,7 @@ public class OutboxPublisher {
    private final OutboxClaimService claimService;
     private final OutboxStatusService statusService;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
     private final String inventoryReservedTopic;
     private final String inventoryReservationFailedTopic;
     private final String inventoryReleasedTopic;
@@ -28,6 +34,7 @@ public class OutboxPublisher {
             OutboxClaimService claimService,
             OutboxStatusService statusService,
             KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper,
             @Value("${app.kafka.topics.inventory-reserved}") String inventoryReservedTopic,
             @Value("${app.kafka.topics.inventory-reservation-failed}") String inventoryReservationFailedTopic,
             @Value("${app.kafka.topics.inventory-released}") String inventoryReleasedTopic,
@@ -37,6 +44,7 @@ public class OutboxPublisher {
         this.claimService = claimService;
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
         this.inventoryReservedTopic = inventoryReservedTopic;
         this.inventoryReservationFailedTopic = inventoryReservationFailedTopic;
         this.inventoryReleasedTopic = inventoryReleasedTopic;
@@ -53,14 +61,24 @@ public class OutboxPublisher {
 
         for (OutboxEvent event : events) {
             publish(event);
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
         }
     }
 
 
     private void publish(OutboxEvent event) {
         try {
+            ProducerRecord<String, String> producerRecord= new ProducerRecord<>(
+                    topicFor(event),
+                    event.getAggregateId().toString(),
+                    event.getPayload()
+            );
+            addEnvelopeHeaders(producerRecord, event.getPayload());
+
             kafkaTemplate
-                    .send(topicFor(event), event.getAggregateId().toString() , event.getPayload())
+                    .send(producerRecord)
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
@@ -91,6 +109,32 @@ public class OutboxPublisher {
             //send did not complete within 5 seconds -> TimeoutException
         }
     }
+
+    private void addEnvelopeHeaders(ProducerRecord<String, String> record, String payload) {
+
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            addHeader(record, "event-id", root.path("eventId").asText());
+            addHeader(record, "event-type", root.path("eventType").asText());
+            addHeader(record, "event-version", root.path("eventVersion").asText());
+            addHeader(record, "correlation-id", root.path("correlationId").asText());
+            addHeader(record, "causation-id", root.path("causationId").asText());
+            addHeader(record, "source", root.path("source").asText());
+
+        } catch (Exception ex)
+        {
+            throw new InvalidOutboxEnvelopeException("Failed to extract envelope headers", ex);
+        }
+    }
+
+    private void addHeader(ProducerRecord<String,String> record, String key, String value)
+    {
+        if (value == null || value.isBlank() || "null".equals(value)) {
+            return;
+        }
+        record.headers().add(key, value.getBytes(StandardCharsets.UTF_8));
+    }
+
     private String errorMessage(Exception ex) {
 
         Throwable target = ex.getCause() != null ? ex.getCause() : ex;
@@ -101,12 +145,13 @@ public class OutboxPublisher {
     }
 
     private String topicFor(OutboxEvent event) {
+
         return
                 switch (event.getEventType())
                 {
-                    case "InventoryReserved" -> inventoryReservedTopic;
-                    case "InventoryReservationFailed" -> inventoryReservationFailedTopic;
-                    case "InventoryReleased" -> inventoryReleasedTopic;
+                    case  EventTypes.INVENTORY_RESERVED -> inventoryReservedTopic;
+                    case EventTypes.INVENTORY_RESERVATION_FAILED -> inventoryReservationFailedTopic;
+                    case EventTypes.INVENTORY_RELEASED -> inventoryReleasedTopic;
                     default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
                 };
     }

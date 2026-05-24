@@ -2,8 +2,11 @@ package com.shirin.order.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shirin.contracts.order.OrderCreatedEvent;
-import com.shirin.contracts.order.OrderCreatedEventItem;
+import com.shirin.contracts.common.EventEnvelope;
+import com.shirin.contracts.common.EventSources;
+import com.shirin.contracts.common.EventTypes;
+import com.shirin.contracts.order.OrderCreatedItemsPayload;
+import com.shirin.contracts.order.OrderCreatedPayload;
 import com.shirin.order.domain.Order;
 import com.shirin.order.domain.OrderRepository;
 import com.shirin.order.outbox.OutboxEvent;
@@ -54,16 +57,25 @@ public class OrderCreationTxService  {
 
         UUID eventId = UUID.randomUUID();
 
-        List<OrderCreatedEventItem> eventItems = order.getItems()
+        List<OrderCreatedItemsPayload> payloadItems = order
+                .getItems()
                 .stream()
-                .map(item -> new OrderCreatedEventItem(
+                .map(item -> new OrderCreatedItemsPayload(
                         item.getSkuId(),
                         item.getQuantity()
-                ))
-                .toList();
+                )).toList();
 
-        OrderCreatedEvent event = new OrderCreatedEvent(
-                eventId, orderId, eventItems
+        OrderCreatedPayload payload= new OrderCreatedPayload(orderId, payloadItems);
+
+        EventEnvelope<OrderCreatedPayload> newEnvelope =
+                EventEnvelope.create(
+                        eventId,
+                        EventTypes.ORDER_CREATED,
+                        1,
+                        orderId, // correlationId = orderId
+                        null,
+                        EventSources.ORDER_SERVICE,
+                        payload
         );
 
         outboxEventRepository.save(
@@ -71,18 +83,18 @@ public class OrderCreationTxService  {
                         eventId,
                         "Order",
                         orderId,
-                        "OrderCreated",
-                        toJson(event)
+                        EventTypes.ORDER_CREATED,
+                        toJson(newEnvelope)
         ));
 
         return new CreateOrderResult(orderId, false);
     }
 
-    private String toJson(Object event) {
+    private String toJson(Object envelope) {
         try {
-            return objectMapper.writeValueAsString(event);
+            return objectMapper.writeValueAsString(envelope);
         } catch (JsonProcessingException ex) {
-            throw new EventSerializationException("Failed to serialize outgoing order event", ex);
+            throw new EventSerializationException("Failed to serialize outgoing order envelope", ex);
         }
     }
     private void validateCheckoutSnapshot(CreateOrderCommand command) {

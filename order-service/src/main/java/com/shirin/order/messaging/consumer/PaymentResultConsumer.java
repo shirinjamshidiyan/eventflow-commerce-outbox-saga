@@ -1,9 +1,12 @@
 package com.shirin.order.messaging.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shirin.contracts.payment.PaymentAuthorizedEvent;
-import com.shirin.contracts.payment.PaymentFailedEvent;
+import com.shirin.contracts.common.EventEnvelope;
+import com.shirin.contracts.common.EventTypes;
+import com.shirin.contracts.payment.PaymentAuthorizedPayload;
+import com.shirin.contracts.payment.PaymentFailedPayload;
 import com.shirin.order.application.OrderApplicationService;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -28,9 +31,12 @@ public class PaymentResultConsumer {
             groupId = "${spring.kafka.consumer.group-id}")
     public void consumePaymentAuthorizedEvent(String payload) {
 
-        PaymentAuthorizedEvent event = toEventObject(payload, PaymentAuthorizedEvent.class);
-        validate(event);
-        orderService.handlePaymentAuthorizedEvent(event);
+        EventEnvelope<PaymentAuthorizedPayload> envelope = toEnvelope(payload, PaymentAuthorizedPayload.class);
+
+        validateEnvelope(envelope);
+        validateEventType(envelope, EventTypes.PAYMENT_AUTHORIZED);
+
+        orderService.handlePaymentAuthorizedEvent(envelope);
 
     }
 
@@ -39,24 +45,43 @@ public class PaymentResultConsumer {
             groupId = "${spring.kafka.consumer.group-id}")
     public void consumePaymentFailedEvent(String payload) {
 
-        PaymentFailedEvent event = toEventObject(payload, PaymentFailedEvent.class);
-        validate(event);
-        orderService.handlePaymentFailedEvent(event);
+        EventEnvelope<PaymentFailedPayload> envelope = toEnvelope( payload, PaymentFailedPayload.class );
+
+        validateEnvelope(envelope);
+        validateEventType(envelope, EventTypes.PAYMENT_FAILED);
+
+        orderService.handlePaymentFailedEvent(envelope);
 
     }
     
-    private <T> T toEventObject(String payload, Class<T> eventType) {
+    private <T> EventEnvelope<T> toEnvelope(String payload, Class<T> payloadType) {
         try {
-            return objectMapper.readValue(payload, eventType);
+            JavaType envelopeType = objectMapper
+                    .getTypeFactory()
+                    .constructParametricType(EventEnvelope.class, payloadType);
+
+            return objectMapper.readValue(payload, envelopeType );
         } catch (JsonProcessingException ex) {
-            throw new InvalidEventPayloadException("Invalid payment result event JSON payload", ex);
+            throw new InvalidEventPayloadException("Invalid payment result envelope JSON payload", ex);
         }
     }
-    private <T> void validate(T event) {
-        Set<ConstraintViolation<T>> violations = validator.validate(event);
+
+    private <T> void validateEnvelope(EventEnvelope<T> envelope) {
+        Set<ConstraintViolation<EventEnvelope<T>>> violations = validator.validate(envelope);
 
         if (!violations.isEmpty()) {
             throw new ConstraintViolationException(violations);
+        }
+    }
+
+    private void validateEventType(EventEnvelope<?> envelope, String expectedEventType) {
+        if (!expectedEventType.equals(envelope.eventType())) {
+            throw new InvalidEventPayloadException(
+                    "Unexpected event type. Expected: "
+                            + expectedEventType
+                            + ", actual: "
+                            + envelope.eventType()
+            );
         }
     }
 }
