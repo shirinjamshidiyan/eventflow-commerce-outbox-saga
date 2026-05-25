@@ -19,7 +19,7 @@ public record EventEnvelope<T> (
         @NotNull UUID correlationId,
         UUID causationId,
         @NotNull Instant occurredAt,
-        @NotBlank String eventSource,
+        @NotBlank String source,
         @NotNull @Valid T payload
 ){
 

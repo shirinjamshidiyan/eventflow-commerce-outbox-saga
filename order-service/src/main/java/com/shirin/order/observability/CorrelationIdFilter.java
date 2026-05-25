@@ -25,22 +25,30 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        String correlationId = request.getHeader(HEADER_NAME);
+        UUID correlationId = resolveCorrelationId(request.getHeader(HEADER_NAME));
 
-        if (correlationId == null || correlationId.isBlank()) {
-            correlationId = UUID.randomUUID().toString();
+        try {
+            MDC.put("correlationId", correlationId.toString());
+            response.setHeader(HEADER_NAME, correlationId.toString());
+
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.clear();
+        }
+
+
+    }
+
+    private UUID resolveCorrelationId(String value) {
+        if (value == null || value.isBlank()) {
+            return UUID.randomUUID();
         }
 
         try {
-
-            MDC.put("correlationId", correlationId);
-            response.setHeader(HEADER_NAME, correlationId);
-            filterChain.doFilter(request, response);
-        } finally {
-            MDC.remove("correlationId");
+            return UUID.fromString(value.trim());
+        } catch (IllegalArgumentException ex) {
+            return UUID.randomUUID();
         }
-
-
     }
 
 }

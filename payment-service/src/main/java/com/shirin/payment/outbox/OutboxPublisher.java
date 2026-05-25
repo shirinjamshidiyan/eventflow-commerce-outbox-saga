@@ -3,6 +3,7 @@ package com.shirin.payment.outbox;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shirin.contracts.common.EventTypes;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Component
+@Slf4j
 public class OutboxPublisher {
 
    private final OutboxClaimService claimService;
@@ -78,6 +80,13 @@ public class OutboxPublisher {
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
+            log.info(
+                    "Outbox event published eventId={} eventType={} aggregateId={}",
+                    event.getId(),
+                    event.getEventType(),
+                    event.getAggregateId()
+            );
+
 
         } catch (InterruptedException ex) {
             try {
@@ -86,6 +95,13 @@ public class OutboxPublisher {
                         errorMessage(ex),
                         maxRetries,
                         owner
+                );
+                log.warn(
+                        "Outbox event publish failed eventId={} eventType={} aggregateId={} error={}",
+                        event.getId(),
+                        event.getEventType(),
+                        event.getAggregateId(),
+                        errorMessage(ex)
                 );
             } finally {
                 Thread.currentThread().interrupt(); //restore interrupt flag
@@ -96,6 +112,13 @@ public class OutboxPublisher {
                     errorMessage(ex),
                     maxRetries,
                     owner
+            );
+            log.warn(
+                    "Outbox event publish failed eventId={} eventType={} aggregateId={} error={}",
+                    event.getId(),
+                    event.getEventType(),
+                    event.getAggregateId(),
+                    errorMessage(ex)
             );
         }
     }

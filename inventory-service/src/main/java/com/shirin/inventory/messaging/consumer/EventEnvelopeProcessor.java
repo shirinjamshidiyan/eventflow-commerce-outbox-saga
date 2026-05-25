@@ -41,7 +41,7 @@ public class EventEnvelopeProcessor {
         UUID orderId = orderIdExtractor.apply(envelope.payload());
 
         try {
-            LoggingContext.GetMDCInfoFromEnvelope(envelope, orderId);
+            LoggingContext.getMDCInfoFromEnvelope(envelope, orderId);
 
             log.info("Received Kafka event");
 
