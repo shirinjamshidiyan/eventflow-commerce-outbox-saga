@@ -72,7 +72,7 @@ public class OrderCreationTxService  {
                         eventId,
                         EventTypes.ORDER_CREATED,
                         1,
-                        orderId, // correlationId = orderId
+                        command.correlationId(),
                         null,
                         EventSources.ORDER_SERVICE,
                         payload

@@ -6,11 +6,13 @@ import java.util.UUID;
 
 public record CreateOrderCommand(
         UUID requestId,
+        UUID correlationId,
         UUID checkoutId,
         UUID customerId,
         UUID paymentMethodId,
         String currency,
         BigDecimal totalAmount,
         List<CreateOrderCommandItem> items
+
 ) {
 }

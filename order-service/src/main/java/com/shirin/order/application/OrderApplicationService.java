@@ -18,6 +18,7 @@ import com.shirin.order.idempotency.ProcessedEventRepository;
 import com.shirin.order.outbox.OutboxEvent;
 import com.shirin.order.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ import java.util.UUID;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class OrderApplicationService {
 
     private final OrderRepository orderRepository;
@@ -135,15 +137,20 @@ public class OrderApplicationService {
     public void handlePaymentFailedEvent(EventEnvelope<PaymentFailedPayload> envelope)
     {
         int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted ==0 ) return;
+        if(inserted ==0 )
+        {
+            log.info("Duplicate payment failed event ignored");
+            return;
+        }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
         boolean cancellationStarted = order.startCancellation(envelope.payload().reason());
 
         if (!cancellationStarted) {
+            log.info("Payment failed event ignored because order state does not allow cancellation");
             return;
         }
-
+        log.info("Order moved to cancellation pending");
 
         UUID eventId = UUID.randomUUID();
         InventoryReleaseRequestedPayload payload  = new InventoryReleaseRequestedPayload(order.getId());
@@ -166,6 +173,7 @@ public class OrderApplicationService {
                         toJson(newEnvelope))
         );
 
+        log.info("Inventory release requested event stored in outbox");
     }
 
     private String toJson(Object envelope) {

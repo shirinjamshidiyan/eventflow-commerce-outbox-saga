@@ -22,20 +22,21 @@ import java.util.Set;
 public class OrderServiceEventsConsumer {
 
     private final InventoryApplicationService inventoryService;
-    private final ObjectMapper objectMapper;
-    private final Validator validator;
+    private final EventEnvelopeProcessor envelopeProcessor;
 
     @KafkaListener(
             topics = "${app.kafka.topics.order-created}",
             groupId = "${spring.kafka.consumer.group-id}"
     )
     public void consumeOrderCreatedEvent(String payload) {
-        EventEnvelope<OrderCreatedPayload> envelope = toEnvelope(payload,OrderCreatedPayload.class);
+        envelopeProcessor.process(
+                payload,
+                OrderCreatedPayload.class,
+                EventTypes.ORDER_CREATED,
+                OrderCreatedPayload::orderId,
+                inventoryService::processOrderCreatedEvent
+        );
 
-        validateEnvelope(envelope);
-        validateEventType(envelope, EventTypes.ORDER_CREATED);
-
-        inventoryService.processOrderCreatedEvent(envelope);
     }
 
     @KafkaListener(
@@ -43,44 +44,19 @@ public class OrderServiceEventsConsumer {
             groupId = "${spring.kafka.consumer.group-id}"
     )
     public void consumeInventoryReleaseRequestedEvent(String payload)  {
-
-        EventEnvelope<InventoryReleaseRequestedPayload> envelope = toEnvelope(payload, InventoryReleaseRequestedPayload.class);
-
-        validateEnvelope(envelope);
-        validateEventType(envelope, EventTypes.INVENTORY_RELEASE_REQUESTED);
-
-        inventoryService.processInventoryReleaseRequestedEvent(envelope);
+        envelopeProcessor.process(
+                payload,
+                InventoryReleaseRequestedPayload.class,
+                EventTypes.INVENTORY_RELEASE_REQUESTED,
+                InventoryReleaseRequestedPayload::orderId,
+                inventoryService::processInventoryReleaseRequestedEvent
+        );
+        
     }
 
-    private <T> EventEnvelope<T> toEnvelope(String payload,Class<T> payloadType ) {
-        try {
-            JavaType envelopeType = objectMapper
-                    .getTypeFactory()
-                    .constructParametricType(EventEnvelope.class, payloadType);
 
-            return objectMapper.readValue(payload, envelopeType);
-        } catch (JsonProcessingException ex) {
-            throw new InvalidEventPayloadException("Invalid Inventory envelope JSON payload", ex);
-        }
-    }
 
-    private <T> void validateEnvelope(EventEnvelope<T> envelope) {
-        Set<ConstraintViolation<EventEnvelope<T>>> violations = validator.validate(envelope);
 
-        if (!violations.isEmpty()) {
-            throw new ConstraintViolationException(violations);
-        }
-    }
-    private void validateEventType(EventEnvelope<?> envelope, String expectedEventType) {
-        if (!expectedEventType.equals(envelope.eventType())) {
-            throw new InvalidEventPayloadException(
-                    "Unexpected event type. Expected: "
-                            + expectedEventType
-                            + ", actual: "
-                            + envelope.eventType()
-            );
-        }
-    }
 
 
 }
