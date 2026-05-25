@@ -14,6 +14,7 @@ import com.shirin.payment.idempotency.ProcessedEventsRepository;
 import com.shirin.payment.outbox.OutboxEvent;
 import com.shirin.payment.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ import java.util.UUID;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class PaymentApplicationService {
 
     private final ProcessedEventsRepository idempotencyRepository;
@@ -35,7 +37,10 @@ public class PaymentApplicationService {
 
         // idempotency check1: prevents processing the same event
         int inserted  = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted ==0) return;
+        if (inserted == 0) {
+            log.info("Duplicate payment requested event ignored");
+            return;
+        }
 
         // Idempotency check 2: prevents creating more than one payment for the same order.
         Payment existingPayment = paymentRepository
@@ -43,6 +48,7 @@ public class PaymentApplicationService {
                 .orElse(null);
 
         if (existingPayment != null) {
+            log.info("Payment already exists for order, event ignored");
             return;
         }
         PaymentRequestedPayload payload = envelope.payload();
@@ -58,6 +64,8 @@ public class PaymentApplicationService {
         PaymentDecision decision = authorizer.authorize( payload.paymentMethodId(), payload.amount()); //Simulation
 
         if (decision.approved()) {
+
+            log.info("Payment authorized");
 
             payment.authorize();
             paymentRepository.save(payment);
@@ -83,10 +91,12 @@ public class PaymentApplicationService {
                     EventTypes.PAYMENT_AUTHORIZED,
                     toJson(newEnvelope)
             ));
+            log.info("Payment authorized event stored in outbox");
             return;
 
         }
 
+        log.info("Payment failed");
         payment.fail(decision.reason());
         paymentRepository.save(payment);
 
@@ -113,7 +123,7 @@ public class PaymentApplicationService {
                 EventTypes.PAYMENT_FAILED,
                 toJson(newEnvelope)
         ));
-
+        log.info("Payment failed event stored in outbox");
     }
 
 

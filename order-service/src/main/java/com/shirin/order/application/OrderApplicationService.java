@@ -18,6 +18,7 @@ import com.shirin.order.idempotency.ProcessedEventRepository;
 import com.shirin.order.outbox.OutboxEvent;
 import com.shirin.order.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ import java.util.UUID;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class OrderApplicationService {
 
     private final OrderRepository orderRepository;
@@ -61,12 +63,20 @@ public class OrderApplicationService {
     public void handleInventoryReservedEvent(EventEnvelope<InventoryReservedPayload> envelope)
     {
         int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted ==0 ) return;
+        if (inserted == 0) {
+            log.info("Duplicate inventory reserved event ignored");
+            return;
+        }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
         boolean moved = order.moveToPaymentPendingAfterInventoryReserved();
 
-        if(!moved) return;
+        if (!moved) {
+            log.info("move To payment pending after InventoryReserved was not allowed");
+            return;
+        }
+
+        log.info("Order moved to payment pending");
 
         UUID eventId = UUID.randomUUID();
 
@@ -94,6 +104,7 @@ public class OrderApplicationService {
                         EventTypes.PAYMENT_REQUESTED,
                         toJson(newEnvelope)
         ));
+        log.info("Payment requested event stored in outbox");
 
     }
 
@@ -101,10 +112,14 @@ public class OrderApplicationService {
     public void handleInventoryReservationFailedEvent(EventEnvelope<InventoryReservationFailedPayload> envelope)
     {
         int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted ==0 ) return;
+        if (inserted == 0) {
+            log.info("Duplicate Inventory reservation failed event ignored");
+            return;
+        }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
         order.cancelDirectly(envelope.payload().reason());
+        log.info("Order cancelled because inventory reservation failed");
 
     }
 
@@ -112,10 +127,14 @@ public class OrderApplicationService {
     public void handlePaymentAuthorizedEvent(EventEnvelope<PaymentAuthorizedPayload> envelope)
     {
         int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted ==0 ) return;
+        if (inserted == 0) {
+            log.info("Duplicate payment authorized event ignored");
+            return;
+        }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
         order.confirmPayment(envelope.payload().paymentId());
+        log.info("Order confirmed after payment authorization");
         //event: send to notification
 
     }
@@ -124,10 +143,14 @@ public class OrderApplicationService {
     public void handleInventoryReleasedEvent(EventEnvelope<InventoryReleasedPayload> envelope)
     {
         int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted ==0 ) return;
+        if (inserted == 0) {
+            log.info("Duplicate inventory released event ignored");
+            return;
+        }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
         order.completeCancellation("Inventory reservation released");
+        log.info("Order cancelled after inventory release");
 
     }
 
@@ -135,15 +158,19 @@ public class OrderApplicationService {
     public void handlePaymentFailedEvent(EventEnvelope<PaymentFailedPayload> envelope)
     {
         int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted ==0 ) return;
+        if (inserted == 0) {
+            log.info("Duplicate payment failed event ignored");
+            return;
+        }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
         boolean cancellationStarted = order.startCancellation(envelope.payload().reason());
 
         if (!cancellationStarted) {
+            log.info("Payment failed event ignored because order state does not allow cancellation");
             return;
         }
-
+        log.info("Order moved to cancellation pending after payment failure");
 
         UUID eventId = UUID.randomUUID();
         InventoryReleaseRequestedPayload payload  = new InventoryReleaseRequestedPayload(order.getId());
@@ -166,6 +193,7 @@ public class OrderApplicationService {
                         toJson(newEnvelope))
         );
 
+        log.info("Inventory release requested event stored in outbox");
     }
 
     private String toJson(Object envelope) {

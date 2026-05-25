@@ -12,6 +12,7 @@ import com.shirin.order.domain.OrderRepository;
 import com.shirin.order.outbox.OutboxEvent;
 import com.shirin.order.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ import java.util.UUID;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class OrderCreationTxService  {
 
     private final OrderRepository orderRepository;
@@ -72,7 +74,7 @@ public class OrderCreationTxService  {
                         eventId,
                         EventTypes.ORDER_CREATED,
                         1,
-                        orderId, // correlationId = orderId
+                        command.correlationId(),
                         null,
                         EventSources.ORDER_SERVICE,
                         payload
@@ -87,6 +89,7 @@ public class OrderCreationTxService  {
                         toJson(newEnvelope)
         ));
 
+        log.info("Order created event stored in outbox");
         return new CreateOrderResult(orderId, false);
     }
 

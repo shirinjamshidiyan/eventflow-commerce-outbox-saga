@@ -8,6 +8,10 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.UUID;
 
+/*
+Contains metadata for tracking، tracing، debugging، replay and observability
+ */
+
 public record EventEnvelope<T> (
         @NotNull UUID eventId,
         @NotBlank String eventType,
@@ -15,7 +19,7 @@ public record EventEnvelope<T> (
         @NotNull UUID correlationId,
         UUID causationId,
         @NotNull Instant occurredAt,
-        @NotBlank String eventSource,
+        @NotBlank String source,
         @NotNull @Valid T payload
 ){
 

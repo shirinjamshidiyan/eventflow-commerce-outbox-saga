@@ -16,6 +16,7 @@ import com.shirin.inventory.idempotency.ProcessedEventRepository;
 import com.shirin.inventory.outbox.OutboxEvent;
 import com.shirin.inventory.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class InventoryApplicationService {
 
     private final ProcessedEventRepository idempotencyRepository;
@@ -36,8 +38,10 @@ public class InventoryApplicationService {
 
         // idempotency check : processed_events insert
         int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted==0)
+        if (inserted == 0) {
+            log.info("Duplicate order created event ignored");
             return;
+        }
 
 
         // Group requested quantities by SKU and sum duplicate SKU entries
@@ -106,7 +110,7 @@ public class InventoryApplicationService {
               );
 
           }
-
+          log.info("Inventory reserved for order");
 
           UUID eventId =  UUID.randomUUID();
           InventoryReservedPayload successPayload = new InventoryReservedPayload(envelope.payload().orderId());
@@ -130,10 +134,10 @@ public class InventoryApplicationService {
                         EventTypes.INVENTORY_RESERVED,
                         toJson(newEnvelope)
          ));
+          log.info("Inventory reserved event stored in outbox");
       } else
       {
-
-
+          log.info("Inventory reservation failed");
           UUID eventId =  UUID.randomUUID();
 
           InventoryReservationFailedPayload failurePayload =
@@ -159,6 +163,7 @@ public class InventoryApplicationService {
                         EventTypes.INVENTORY_RESERVATION_FAILED,
                         toJson(newEnvelope)
         ));
+          log.info("Inventory reservation failed event stored in outbox");
     }
    }
 
@@ -167,8 +172,10 @@ public class InventoryApplicationService {
 
         // idempotency check : processed_events insert
         int inserted = idempotencyRepository.insertIfAbsent(envelope.eventId());
-        if(inserted==0)
+        if (inserted == 0) {
+            log.info("Duplicate inventory release requested event ignored");
             return;
+        }
 
         List<InventoryReservation> sortedList = reservationRepository
                 .findAllByOrderIdAndStatusForUpdate(
@@ -189,6 +196,10 @@ public class InventoryApplicationService {
 
         // Release is treated as idempotent. If no reserved rows exist (= sortedList.size=0)
         // publishing InventoryReleased allows the saga to continue.
+
+        log.info("Inventory release completed, releasedReservations={}", sortedList.size());
+
+
         UUID eventId = UUID.randomUUID();
 
         InventoryReleasedPayload payload = new InventoryReleasedPayload(envelope.payload().orderId());
@@ -214,6 +225,7 @@ public class InventoryApplicationService {
 
                 )
         );
+        log.info("Inventory released event stored in outbox");
     }
 
 

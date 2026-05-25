@@ -39,3 +39,7 @@ app:
     max-retries: 10
     fixed-delay-ms: 5000
     recovery-delay-ms: 60000
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} correlationId=%X{correlationId} eventId=%X{eventId} eventType=%X{eventType} causationId=%X{causationId} source=%X{source} orderId=%X{orderId} requestId=%X{requestId} - %msg%n"
