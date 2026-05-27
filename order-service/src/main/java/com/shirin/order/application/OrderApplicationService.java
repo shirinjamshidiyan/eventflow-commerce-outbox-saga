@@ -15,6 +15,7 @@ import com.shirin.contracts.payment.PaymentFailedPayload;
 import com.shirin.order.domain.Order;
 import com.shirin.order.domain.OrderRepository;
 import com.shirin.order.idempotency.ProcessedEventRepository;
+import com.shirin.order.observability.OrderMetrics;
 import com.shirin.order.outbox.OutboxEvent;
 import com.shirin.order.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
@@ -23,6 +24,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
@@ -35,6 +37,7 @@ public class OrderApplicationService {
     private final ProcessedEventRepository idempotencyRepository;
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final OrderMetrics orderMetrics;
 
     public CreateOrderResult createOrder(CreateOrderCommand command) {
 
@@ -58,7 +61,6 @@ public class OrderApplicationService {
         }
 
     }
-
     @Transactional
     public void handleInventoryReservedEvent(EventEnvelope<InventoryReservedPayload> envelope)
     {
@@ -107,7 +109,6 @@ public class OrderApplicationService {
         log.info("Payment requested event stored in outbox");
 
     }
-
     @Transactional
     public void handleInventoryReservationFailedEvent(EventEnvelope<InventoryReservationFailedPayload> envelope)
     {
@@ -118,11 +119,15 @@ public class OrderApplicationService {
         }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+
         order.cancelDirectly(envelope.payload().reason());
+
+        orderMetrics.recordCancelledAfterCommit(
+                Duration.between(order.getCreatedAt(), order.getCancelledAt()));
+
         log.info("Order cancelled because inventory reservation failed");
 
     }
-
     @Transactional
     public void handlePaymentAuthorizedEvent(EventEnvelope<PaymentAuthorizedPayload> envelope)
     {
@@ -133,12 +138,20 @@ public class OrderApplicationService {
         }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
-        order.confirmPayment(envelope.payload().paymentId());
+
+        boolean confirmed = order.confirmPayment(envelope.payload().paymentId());
+        if (!confirmed) {
+            log.info("Payment authorized event ignored because order state does not allow confirmation");
+            return;
+        }
+
+        orderMetrics.recordConfirmedAfterCommit(
+                Duration.between(order.getCreatedAt(), order.getConfirmedAt()));
+
         log.info("Order confirmed after payment authorization");
         //event: send to notification
 
     }
-
     @Transactional
     public void handleInventoryReleasedEvent(EventEnvelope<InventoryReleasedPayload> envelope)
     {
@@ -149,11 +162,15 @@ public class OrderApplicationService {
         }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+
         order.completeCancellation("Inventory reservation released");
+
+         orderMetrics.recordCancelledAfterCommit(
+                    Duration.between(order.getCreatedAt(), order.getCancelledAt()));
+
         log.info("Order cancelled after inventory release");
 
     }
-
     @Transactional
     public void handlePaymentFailedEvent(EventEnvelope<PaymentFailedPayload> envelope)
     {
@@ -164,12 +181,16 @@ public class OrderApplicationService {
         }
 
         Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+
         boolean cancellationStarted = order.startCancellation(envelope.payload().reason());
 
         if (!cancellationStarted) {
             log.info("Payment failed event ignored because order state does not allow cancellation");
             return;
         }
+
+        orderMetrics.recordCancellationStartedAfterCommit();
+
         log.info("Order moved to cancellation pending after payment failure");
 
         UUID eventId = UUID.randomUUID();

@@ -9,6 +9,7 @@ import com.shirin.contracts.order.OrderCreatedItemsPayload;
 import com.shirin.contracts.order.OrderCreatedPayload;
 import com.shirin.order.domain.Order;
 import com.shirin.order.domain.OrderRepository;
+import com.shirin.order.observability.OrderMetrics;
 import com.shirin.order.outbox.OutboxEvent;
 import com.shirin.order.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
@@ -29,6 +30,8 @@ public class OrderCreationTxService  {
     private final OrderNumberGenerator orderNumberGenerator;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final OrderMetrics orderMetrics;
+
     @Transactional
     public CreateOrderResult createNewOrder(CreateOrderCommand command) {
 
@@ -89,7 +92,10 @@ public class OrderCreationTxService  {
                         toJson(newEnvelope)
         ));
 
+        orderMetrics.recordCreatedAfterCommit();
+
         log.info("Order created event stored in outbox");
+
         return new CreateOrderResult(orderId, false);
     }
 
