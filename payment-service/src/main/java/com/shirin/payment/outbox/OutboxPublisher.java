@@ -3,6 +3,7 @@ package com.shirin.payment.outbox;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shirin.contracts.common.EventTypes;
+import com.shirin.payment.observability.OutboxMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ public class OutboxPublisher {
     private final OutboxStatusService statusService;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final OutboxMetrics outboxMetrics;
     private final String paymentAuthorizedTopic;
     private final String paymentFailedTopic;
     private final int maxRetries;
@@ -36,6 +38,7 @@ public class OutboxPublisher {
             OutboxStatusService statusService,
             KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
+            OutboxMetrics outboxMetrics,
             @Value("${app.kafka.topics.payment-authorized}") String paymentAuthorizedTopic,
             @Value("${app.kafka.topics.payment-failed}") String paymentFailedTopic,
             @Value("${app.outbox.max-retries}") int maxRetries,
@@ -45,6 +48,7 @@ public class OutboxPublisher {
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.outboxMetrics = outboxMetrics;
         this.paymentAuthorizedTopic = paymentAuthorizedTopic;
         this.paymentFailedTopic = paymentFailedTopic;
         this.maxRetries = maxRetries;
@@ -80,6 +84,8 @@ public class OutboxPublisher {
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
+            outboxMetrics.recordPublished();
+
             log.info(
                     "Outbox event published eventId={} eventType={} aggregateId={}",
                     event.getId(),
@@ -96,6 +102,8 @@ public class OutboxPublisher {
                         maxRetries,
                         owner
                 );
+                outboxMetrics.recordPublishFailed();
+
                 log.warn(
                         "Outbox event publish failed eventId={} eventType={} aggregateId={} error={}",
                         event.getId(),
@@ -113,6 +121,8 @@ public class OutboxPublisher {
                     maxRetries,
                     owner
             );
+            outboxMetrics.recordPublishFailed();
+
             log.warn(
                     "Outbox event publish failed eventId={} eventType={} aggregateId={} error={}",
                     event.getId(),

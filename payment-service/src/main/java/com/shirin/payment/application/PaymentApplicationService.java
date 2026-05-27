@@ -11,6 +11,7 @@ import com.shirin.contracts.payment.PaymentFailedPayload;
 import com.shirin.payment.domain.Payment;
 import com.shirin.payment.domain.PaymentRepository;
 import com.shirin.payment.idempotency.ProcessedEventsRepository;
+import com.shirin.payment.observability.PaymentMetrics;
 import com.shirin.payment.outbox.OutboxEvent;
 import com.shirin.payment.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,7 @@ public class PaymentApplicationService {
     private final FakePaymentAuthorizer authorizer;
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final PaymentMetrics paymentMetrics;
 
     @Transactional
     public void processPaymentRequestedEvent(EventEnvelope<PaymentRequestedPayload> envelope)
@@ -91,12 +93,16 @@ public class PaymentApplicationService {
                     EventTypes.PAYMENT_AUTHORIZED,
                     toJson(newEnvelope)
             ));
+
+            paymentMetrics.recordAuthorizedAfterCommit();
+
             log.info("Payment authorized event stored in outbox");
             return;
 
         }
 
         log.info("Payment failed");
+
         payment.fail(decision.reason());
         paymentRepository.save(payment);
 
@@ -123,6 +129,8 @@ public class PaymentApplicationService {
                 EventTypes.PAYMENT_FAILED,
                 toJson(newEnvelope)
         ));
+        paymentMetrics.recordFailedAfterCommit();
+
         log.info("Payment failed event stored in outbox");
     }
 

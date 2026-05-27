@@ -1,12 +1,12 @@
 com\shirin\contracts\common\EventTypes.class
-com\shirin\contracts\order\OrderCreatedPayload.class
-com\shirin\contracts\order\OrderCreatedItemsPayload.class
-com\shirin\contracts\order\InventoryReleaseRequestedPayload.class
-com\shirin\contracts\order\PaymentRequestedPayload.class
 com\shirin\contracts\payment\PaymentAuthorizedPayload.class
+com\shirin\contracts\order\OrderCreatedPayload.class
 com\shirin\contracts\inventory\InventoryReleasedPayload.class
 com\shirin\contracts\inventory\InventoryReservedPayload.class
+com\shirin\contracts\order\OrderCreatedItemsPayload.class
 com\shirin\contracts\inventory\InventoryReservationFailedPayload.class
+com\shirin\contracts\order\InventoryReleaseRequestedPayload.class
+com\shirin\contracts\order\PaymentRequestedPayload.class
 com\shirin\contracts\payment\PaymentFailedPayload.class
 com\shirin\contracts\common\EventEnvelope.class
 com\shirin\contracts\common\EventSources.class
