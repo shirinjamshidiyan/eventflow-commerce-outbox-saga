@@ -3,6 +3,7 @@ package com.shirin.order.outbox;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shirin.contracts.common.EventTypes;
+import com.shirin.order.observability.OutboxMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ public class OutboxPublisher {
     private final OutboxStatusService statusService;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final OutboxMetrics outboxMetrics;
     private final String orderCreatedTopic;
     private final String paymentRequestedTopic;
     private final String inventoryReleaseRequestedTopic;
@@ -38,6 +40,7 @@ public class OutboxPublisher {
             OutboxStatusService statusService,
             KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
+            OutboxMetrics outboxMetrics,
             @Value("${app.kafka.topics.order-created}") String orderCreatedTopic,
             @Value("${app.kafka.topics.payment-requested}") String paymentRequestedTopic,
             @Value("${app.kafka.topics.inventory-release-requested}") String inventoryReleaseRequestedTopic,
@@ -48,6 +51,7 @@ public class OutboxPublisher {
         this.statusService = statusService;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.outboxMetrics = outboxMetrics;
         this.orderCreatedTopic = orderCreatedTopic;
         this.paymentRequestedTopic = paymentRequestedTopic;
         this.inventoryReleaseRequestedTopic = inventoryReleaseRequestedTopic;
@@ -85,6 +89,8 @@ public class OutboxPublisher {
                     .get(5, TimeUnit.SECONDS);
 
             statusService.markPublished(event.getId(), owner);
+            outboxMetrics.recordPublished();
+
             log.info(
                     "Outbox event published eventId={} eventType={} aggregateId={}",
                     event.getId(),
@@ -100,6 +106,8 @@ public class OutboxPublisher {
                         maxRetries,
                         owner
                 );
+                outboxMetrics.recordPublishFailed();
+
                 log.warn(
                         "Outbox event publish failed eventId={} eventType={} aggregateId={} error={}",
                         event.getId(),
@@ -117,6 +125,8 @@ public class OutboxPublisher {
                     maxRetries,
                     owner
             );
+            outboxMetrics.recordPublishFailed();
+
             log.warn(
                     "Outbox event publish failed eventId={} eventType={} aggregateId={} error={}",
                     event.getId(),

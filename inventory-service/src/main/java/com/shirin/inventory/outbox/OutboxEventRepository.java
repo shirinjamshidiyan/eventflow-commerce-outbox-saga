@@ -46,6 +46,7 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
             @Param("error") String error
     );
 
+    long countByStatus(OutboxStatus status);
 
 
 }
