@@ -13,6 +13,7 @@ import com.shirin.contracts.order.OrderCreatedItemsPayload;
 import com.shirin.contracts.order.OrderCreatedPayload;
 import com.shirin.inventory.domain.*;
 import com.shirin.inventory.idempotency.ProcessedEventRepository;
+import com.shirin.inventory.observability.InventoryMetrics;
 import com.shirin.inventory.outbox.OutboxEvent;
 import com.shirin.inventory.outbox.OutboxEventRepository;
 import lombok.AllArgsConstructor;
@@ -32,6 +33,7 @@ public class InventoryApplicationService {
     private final InventoryReservationRepository reservationRepository;
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final InventoryMetrics inventoryMetrics;
 
     @Transactional
    public void processOrderCreatedEvent(EventEnvelope<OrderCreatedPayload> envelope)  {
@@ -134,6 +136,9 @@ public class InventoryApplicationService {
                         EventTypes.INVENTORY_RESERVED,
                         toJson(newEnvelope)
          ));
+
+        inventoryMetrics.recordReservationReservedAfterCommit();
+
           log.info("Inventory reserved event stored in outbox");
       } else
       {
@@ -163,6 +168,9 @@ public class InventoryApplicationService {
                         EventTypes.INVENTORY_RESERVATION_FAILED,
                         toJson(newEnvelope)
         ));
+
+         inventoryMetrics.recordReservationFailedAfterCommit();
+
           log.info("Inventory reservation failed event stored in outbox");
     }
    }
@@ -225,6 +233,9 @@ public class InventoryApplicationService {
 
                 )
         );
+
+        inventoryMetrics.recordReleaseCompletedAfterCommit();
+
         log.info("Inventory released event stored in outbox");
     }
 
