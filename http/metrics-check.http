@@ -1,0 +1,133 @@
+### Metrics Check
+@orderServiceUrl = http://localhost:8081
+@inventoryServiceUrl = http://localhost:8082
+@paymentServiceUrl = http://localhost:8083
+
+
+### ORDER SERVICE - business metrics
+
+GET {{orderServiceUrl}}/actuator/metrics/order.saga.created
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/order.saga.confirmed
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/order.saga.cancelled
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/order.saga.cancellation.started
+
+
+### ORDER SERVICE - outbox publish counters
+
+GET {{orderServiceUrl}}/actuator/metrics/outbox.publish?tag=result:success
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/outbox.publish?tag=result:failed
+
+
+### ORDER SERVICE - outbox gauges
+
+GET {{orderServiceUrl}}/actuator/metrics/outbox.events?tag=status:pending
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/outbox.events?tag=status:processing
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/outbox.events?tag=status:published
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/outbox.events?tag=status:failed
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/outbox.events?tag=status:dead
+
+
+### INVENTORY SERVICE - business metrics
+
+GET {{inventoryServiceUrl}}/actuator/metrics/inventory.reservation?tag=result:reserved
+
+###
+
+GET {{inventoryServiceUrl}}/actuator/metrics/inventory.reservation?tag=result:failed
+
+###
+
+GET {{inventoryServiceUrl}}/actuator/metrics/inventory.release?tag=result:completed
+
+
+### INVENTORY SERVICE - outbox publish counters
+
+GET {{inventoryServiceUrl}}/actuator/metrics/outbox.publish?tag=result:success
+
+###
+
+GET {{inventoryServiceUrl}}/actuator/metrics/outbox.publish?tag=result:failed
+
+
+### INVENTORY SERVICE - outbox gauges
+
+GET {{inventoryServiceUrl}}/actuator/metrics/outbox.events?tag=status:pending
+
+###
+
+GET {{inventoryServiceUrl}}/actuator/metrics/outbox.events?tag=status:processing
+
+###
+
+GET {{inventoryServiceUrl}}/actuator/metrics/outbox.events?tag=status:published
+
+###
+
+GET {{inventoryServiceUrl}}/actuator/metrics/outbox.events?tag=status:failed
+
+###
+
+GET {{inventoryServiceUrl}}/actuator/metrics/outbox.events?tag=status:dead
+
+
+### PAYMENT SERVICE - business metrics
+
+GET {{paymentServiceUrl}}/actuator/metrics/payment.authorization?tag=result:authorized
+
+###
+
+GET {{paymentServiceUrl}}/actuator/metrics/payment.authorization?tag=result:failed
+
+
+### PAYMENT SERVICE - outbox publish counters
+
+GET {{paymentServiceUrl}}/actuator/metrics/outbox.publish?tag=result:success
+
+###
+
+GET {{paymentServiceUrl}}/actuator/metrics/outbox.publish?tag=result:failed
+
+
+### PAYMENT SERVICE - outbox gauges
+
+GET {{paymentServiceUrl}}/actuator/metrics/outbox.events?tag=status:pending
+
+###
+
+GET {{paymentServiceUrl}}/actuator/metrics/outbox.events?tag=status:processing
+
+###
+
+GET {{paymentServiceUrl}}/actuator/metrics/outbox.events?tag=status:published
+
+###
+
+GET {{paymentServiceUrl}}/actuator/metrics/outbox.events?tag=status:failed
+
+###
+
+GET {{paymentServiceUrl}}/actuator/metrics/outbox.events?tag=status:dead
