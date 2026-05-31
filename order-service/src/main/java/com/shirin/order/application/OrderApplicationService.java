@@ -57,7 +57,7 @@ public class OrderApplicationService {
             return orderRepository
                     .findByRequestId(command.requestId())
                     .map(order -> new CreateOrderResult(order.getId(), true) )
-                    .orElseThrow(()->exception);
+                    .orElseThrow(() -> exception);
         }
 
     }
@@ -70,7 +70,10 @@ public class OrderApplicationService {
             return;
         }
 
-        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+        Order order = findOrderOrThrow(
+                envelope.payload().orderId(),
+                "handling InventoryReserved eventId=" + envelope.eventId()
+        );
         boolean moved = order.moveToPaymentPendingAfterInventoryReserved();
 
         if (!moved) {
@@ -118,7 +121,10 @@ public class OrderApplicationService {
             return;
         }
 
-        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+        Order order = findOrderOrThrow(
+                envelope.payload().orderId(),
+                "handling InventoryReservationFailed eventId=" + envelope.eventId()
+        );
 
         order.cancelDirectly(envelope.payload().reason());
 
@@ -137,7 +143,10 @@ public class OrderApplicationService {
             return;
         }
 
-        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+        Order order = findOrderOrThrow(
+                envelope.payload().orderId(),
+                "handling PaymentAuthorized eventId=" + envelope.eventId()
+        );
 
         boolean confirmed = order.confirmPayment(envelope.payload().paymentId());
         if (!confirmed) {
@@ -161,8 +170,10 @@ public class OrderApplicationService {
             return;
         }
 
-        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
-
+        Order order = findOrderOrThrow(
+                envelope.payload().orderId(),
+                "handling InventoryReleased eventId=" + envelope.eventId()
+        );
         order.completeCancellation("Inventory reservation released");
 
          orderMetrics.recordCancelledAfterCommit(
@@ -180,7 +191,10 @@ public class OrderApplicationService {
             return;
         }
 
-        Order order = orderRepository.findById(envelope.payload().orderId()).orElseThrow();
+        Order order = findOrderOrThrow(
+                envelope.payload().orderId(),
+                "handling PaymentFailed eventId=" + envelope.eventId()
+        );
 
         boolean cancellationStarted = order.startCancellation(envelope.payload().reason());
 
@@ -215,6 +229,13 @@ public class OrderApplicationService {
         );
 
         log.info("Inventory release requested event stored in outbox");
+    }
+
+    private Order findOrderOrThrow(UUID orderId, String context) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Order not found. orderId=" + orderId + ", context=" + context
+                ));
     }
 
     private String toJson(Object envelope) {

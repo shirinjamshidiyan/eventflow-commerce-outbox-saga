@@ -2,8 +2,6 @@ package com.shirin.payment.domain;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import org.apache.kafka.common.protocol.types.Field;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;

@@ -23,18 +23,26 @@ spring:
     consumer:
       group-id: inventory-service
       auto-offset-reset: earliest
+      enable-auto-commit: false
     producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
       properties:
-        acks: all
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+
+    listener:
+      ack-mode: batch
 
 app:
   kafka:
     topics:
-      order-created: order.created.v1
-      inventory-reserved: inventory.reserved.v1
-      inventory-reservation-failed: inventory.reservation.failed.v1
-      inventory-release-requested: inventory.release.requested.v1
-      inventory-released: inventory.released.v1
+      order-created: order.created
+      inventory-reserved: inventory.reserved
+      inventory-reservation-failed: inventory.reservation.failed
+      inventory-release-requested: inventory.release.requested
+      inventory-released: inventory.released
   outbox:
     claim-limit: 20
     max-retries: 10

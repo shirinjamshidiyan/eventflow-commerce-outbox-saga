@@ -45,7 +45,6 @@ public class InventoryApplicationService {
             return;
         }
 
-
         // Group requested quantities by SKU and sum duplicate SKU entries
         Map<UUID, Integer> requestedBySku = envelope.payload().items().stream()
                 .collect(Collectors.toMap(
@@ -195,7 +194,14 @@ public class InventoryApplicationService {
         {
             InventoryItem lockedInventoryItem = inventoryRepository
                     .findBySkuIdAndLock(reservation.getSkuId())
-                    .orElseThrow();
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Inventory item not found during release. skuId="
+                                    + reservation.getSkuId()
+                                    + ", orderId: " +
+                                    reservation.getOrderId()
+                                    + ", eventId="
+                                    + envelope.eventId()
+                    ));
 
             lockedInventoryItem.increase(reservation.getQuantity());
             reservation.release();
@@ -238,7 +244,6 @@ public class InventoryApplicationService {
 
         log.info("Inventory released event stored in outbox");
     }
-
 
     /*
      change Checked Exception(JsonProcessingException) to Unchecked (IllegalStateException),

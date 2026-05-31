@@ -15,7 +15,11 @@ CREATE TABLE inventory_reservations (
     released_at TIMESTAMPTZ,
 
     CONSTRAINT uq_inventory_reservations_order_sku
-        UNIQUE (order_id, sku_id)
+        UNIQUE (order_id, sku_id),
+
+    CONSTRAINT fk_inventory_reservations_items
+        FOREIGN KEY (sku_id)
+            REFERENCES inventory_items(sku_id)
 );
 
 CREATE INDEX idx_inventory_reservations_order_status
@@ -40,7 +44,7 @@ CREATE TABLE outbox_events (
    last_error TEXT,
    retry_count INT NOT NULL DEFAULT 0,
    next_retry_at TIMESTAMPTZ,
-   processing_started_at TIMESTAMPTZ,
+   processing_started_at timestamptz,
    processing_by VARCHAR(100)
 );
 

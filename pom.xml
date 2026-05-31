@@ -15,7 +15,7 @@
     </parent>
 
     <groupId>com.shirin</groupId>
-    <artifactId>outbox-idempotency-kafka-demo</artifactId>
+    <artifactId>eventflow-commerce-outbox-saga</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 

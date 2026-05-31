@@ -2,7 +2,6 @@ package com.shirin.payment.outbox;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-
 import java.time.Instant;
 import java.util.UUID;
 @Entity

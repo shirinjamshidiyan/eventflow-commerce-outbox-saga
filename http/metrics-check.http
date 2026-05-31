@@ -50,6 +50,13 @@ GET {{orderServiceUrl}}/actuator/metrics/outbox.events?tag=status:failed
 
 GET {{orderServiceUrl}}/actuator/metrics/outbox.events?tag=status:dead
 
+### ORDER SERVICE - timers
+
+GET {{orderServiceUrl}}/actuator/metrics/order.resolution.duration?tag=outcome:confirmed
+
+###
+
+GET {{orderServiceUrl}}/actuator/metrics/order.resolution.duration?tag=outcome:cancelled
 
 ### INVENTORY SERVICE - business metrics
 

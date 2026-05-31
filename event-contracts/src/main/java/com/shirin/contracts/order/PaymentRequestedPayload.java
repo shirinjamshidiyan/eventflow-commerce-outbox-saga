@@ -4,15 +4,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
-
 import java.math.BigDecimal;
 import java.util.UUID;
 
 public record PaymentRequestedPayload(
         @NotNull UUID orderId,
         @NotNull UUID paymentMethodId,
-        @NotBlank @Pattern(regexp = "^[A-Z]{3}$") String currency,
+        @NotBlank @Pattern(regexp = "^[A-Z]{3}$", message = "Currency must be a 3-letter ISO currency code") String currency,
         @NotNull @Positive BigDecimal amount
 
-) {
-}
+) { }

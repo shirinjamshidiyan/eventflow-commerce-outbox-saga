@@ -6,7 +6,6 @@ import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionSynchronization;
-
 import java.time.Duration;
 
 @Component

@@ -2,7 +2,6 @@ package com.shirin.payment.observability;
 
 import com.shirin.contracts.common.EventEnvelope;
 import org.slf4j.MDC;
-
 import java.util.UUID;
 
 public final class LoggingContext {

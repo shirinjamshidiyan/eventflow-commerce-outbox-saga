@@ -23,16 +23,23 @@ spring:
     consumer:
       group-id: payment-service
       auto-offset-reset: earliest
+      enable-auto-commit: false
     producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
       properties:
-        acks: all
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    listener:
+      ack-mode: batch
 
 app:
   kafka:
     topics:
-      payment-requested: payment.requested.v1
-      payment-authorized: payment.authorized.v1
-      payment-failed: payment.failed.v1
+      payment-requested: payment.requested
+      payment-authorized: payment.authorized
+      payment-failed: payment.failed
 
   outbox:
     claim-limit: 20

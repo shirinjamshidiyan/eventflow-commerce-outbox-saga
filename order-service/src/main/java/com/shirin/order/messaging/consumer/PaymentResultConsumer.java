@@ -1,11 +1,9 @@
 package com.shirin.order.messaging.consumer;
 
-import com.shirin.contracts.common.EventEnvelope;
 import com.shirin.contracts.common.EventTypes;
 import com.shirin.contracts.payment.PaymentAuthorizedPayload;
 import com.shirin.contracts.payment.PaymentFailedPayload;
 import com.shirin.order.application.OrderApplicationService;
-import com.shirin.order.observability.LoggingContext;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

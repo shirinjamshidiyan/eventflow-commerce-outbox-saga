@@ -2,12 +2,10 @@ package com.shirin.contracts.payment;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import java.util.UUID;
 
 public record PaymentFailedPayload(
          @NotNull UUID orderId,
          @NotNull UUID paymentId,
          @NotBlank String reason
-) {
-}
+) { }

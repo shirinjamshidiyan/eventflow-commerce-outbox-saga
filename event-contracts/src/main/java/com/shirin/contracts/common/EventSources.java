@@ -1,7 +1,6 @@
 package com.shirin.contracts.common;
 
-public class EventSources {
-
+public final class EventSources {
     private EventSources(){}
     public static final String ORDER_SERVICE = "order-service";
     public static final String INVENTORY_SERVICE = "inventory-service";
