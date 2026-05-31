@@ -1,6 +1,7 @@
 <div align="center">
 
 # EventFlow Commerce: Outbox Saga
+![CI](https://github.com/shirinjamshidiyan/eventflow-commerce-outbox-saga/actions/workflows/ci.yml/badge.svg)
 
 </div>
 
