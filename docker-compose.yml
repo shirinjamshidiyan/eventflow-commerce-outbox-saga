@@ -3,15 +3,15 @@ services:
     image: postgres:16
     container_name: order-db
     environment:
-      POSTGRES_DB: orderdb
-      POSTGRES_USER: user1
-      POSTGRES_PASSWORD: pass1
+      POSTGRES_DB: ${ORDER_DB_NAME}
+      POSTGRES_USER: ${ORDER_DB_USERNAME}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD}
     ports:
       - "5433:5432"
     volumes:
       - order-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user1 -d orderdb" ]
+      test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USERNAME} -d ${ORDER_DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -20,15 +20,15 @@ services:
     image: postgres:16
     container_name: inventory-db
     environment:
-      POSTGRES_DB: inventorydb
-      POSTGRES_USER: user2
-      POSTGRES_PASSWORD: pass2
+      POSTGRES_DB: ${INVENTORY_DB_NAME}
+      POSTGRES_USER: ${INVENTORY_DB_USERNAME}
+      POSTGRES_PASSWORD: ${INVENTORY_DB_PASSWORD}
     ports:
       - "5434:5432"
     volumes:
       - inventory-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user2 -d inventorydb" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${INVENTORY_DB_USERNAME} -d ${INVENTORY_DB_NAME}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -37,15 +37,15 @@ services:
     image: postgres:16
     container_name: payment-db
     environment:
-      POSTGRES_DB: paymentdb
-      POSTGRES_USER: user3
-      POSTGRES_PASSWORD: pass3
+      POSTGRES_DB: ${PAYMENT_DB_NAME}
+      POSTGRES_USER: ${PAYMENT_DB_USERNAME}
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD}
     ports:
       - "5435:5432"
     volumes:
       - payment-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user3 -d paymentdb" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${PAYMENT_DB_USERNAME} -d ${PAYMENT_DB_NAME}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -79,7 +79,6 @@ services:
       retries: 10
       start_period: 30s
 
-
   kafka-init:
     image: apache/kafka:3.9.0
     depends_on:
@@ -110,6 +109,8 @@ services:
       "
       
 
+
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
@@ -122,7 +123,6 @@ services:
       kafka:
         condition: service_healthy
 
-
   order-service:
     build:
       context: .
@@ -131,9 +131,9 @@ services:
       - "8081:8080"
     environment:
       SERVER_PORT: 8080
-      DB_URL: jdbc:postgresql://order-db:5432/orderdb
-      DB_USERNAME: user1
-      DB_PASSWORD: pass1
+      DB_URL: jdbc:postgresql://order-db:5432/${ORDER_DB_NAME}
+      DB_USERNAME: ${ORDER_DB_USERNAME}
+      DB_PASSWORD: ${ORDER_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       order-db:
@@ -151,9 +151,9 @@ services:
       - "8082:8080"
     environment:
       SERVER_PORT: 8080
-      DB_URL: jdbc:postgresql://inventory-db:5432/inventorydb
-      DB_USERNAME: user2
-      DB_PASSWORD: pass2
+      DB_URL: jdbc:postgresql://inventory-db:5432/${INVENTORY_DB_NAME}
+      DB_USERNAME: ${INVENTORY_DB_USERNAME}
+      DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       inventory-db:
@@ -171,9 +171,9 @@ services:
       - "8083:8080"
     environment:
       SERVER_PORT: 8080
-      DB_URL: jdbc:postgresql://payment-db:5432/paymentdb
-      DB_USERNAME: user3
-      DB_PASSWORD: pass3
+      DB_URL: jdbc:postgresql://payment-db:5432/${PAYMENT_DB_NAME}
+      DB_USERNAME: ${PAYMENT_DB_USERNAME}
+      DB_PASSWORD: ${PAYMENT_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       payment-db:
